@@ -35,4 +35,4 @@ Si voleu citar aquest document:
 
 Podeu trobar les dades a la carpeta `datasets/` del repositori de GitHub:
 
-> `[pendent]`
+> <https://github.com/cmanzo/bioestadistica-avancada-amb-r/tree/main/datasets>
