@@ -1,0 +1,343 @@
+---
+title: "Fonaments de la inferència estadística"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+
+
+En aquest capítol introduirem alguns conceptes bàsics que seran la base per a la bioestadística avançada. Considerarem que ja estàs familiaritzat amb moltes de les nocions fonamentals.
+
+------------------------------------------------------------------------
+
+## Distribució normal
+
+La **distribució normal**, o distribució de Gauss, és la distribució de probabilitat més utilitzada en estadística. Està definida per la seva **mitjana** $\mu$ i la seva **desviació estàndard** $\sigma$, i té la forma funcional següent:
+
+$$
+f(x) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(x - \mu)^2}{2\sigma^2}\right)
+$$
+
+Recordem que la **variància** $\sigma^2$ correspon al quadrat de la desviació estàndard.
+
+Podem representar gràficament aquesta funció en R. Primer definim les coordenades $x$ on volem calcular la funció:
+
+```{r}
+x <- seq(-4, 4, length = 200)
+```
+
+A continuació, calculem els valors corresponents $y = f(x)$ fent servir la funció de R `dnorm`:
+
+```{r}
+y <- dnorm(x, mean = 0, sd = 1)
+```
+
+Finalment, generem la gràfica:
+
+```{r}
+plot(x, y, type = "l", lwd = 2, col = "blue",
+     main = "Distribució Normal Estàndard")
+```
+
+Aquesta distribució s’anomena **estàndard** perquè té mitjana $\mu = 0$ i desviació estàndard $\sigma = 1$.
+
+------------------------------------------------------------------------
+
+## Simulacions i manipulació de dades
+
+Pels problemes d’estadística *reals*, típicament disposem d’un conjunt de dades. Per alguns dels nostres exemples, aprendrem a simular dades.
+
+Simular dades té un avantatge pedagògic important: quan simulem, coneixem exactament els paràmetres reals de la població (la mitjana, la variància...), cosa que amb dades reals mai sabem del tot. Això ens permet comprovar si els nostres estimadors i mètodes estadístics funcionen correctament, comparant els resultats obtinguts amb la “veritat” que nosaltres mateixos hem definit.
+
+Per tal que els resultats siguin **reproduïbles**, primer fixarem una *llavor* (seed) i després generarem un conjunt de dades simulades fent servir la funció \`rnorm\`:
+
+```{r}
+set.seed(42)  # Fixem la llavor per garantir la reproduïbilitat
+
+# Simulem 5000 valors d'una distribució normal amb mitjana 5 i desviació estàndard 2
+dades_normal <- rnorm(n = 5000, mean = 5, sd = 2)
+dades_normal[0:10]
+```
+
+:::: {.content-visible when-format="html"}
+::: {.callout-tip}
+## Curiositat: per què `42`?
+
+El generador de nombres "aleatoris" d'R no és aleatori de veritat: és un algorisme determinista (un *pseudorandom number generator*) que, a partir d'una **llavor** (*seed*), produeix sempre exactament la mateixa seqüència de valors — a qualsevol ordinador, avui o d'aquí a deu anys. És precisament això el que fa útil `set.seed()`: fixar la llavor és el que garanteix la reproduïbilitat.
+
+Un detall simpàtic: molta gent fa servir `42` com a llavor preferida, per la famosa broma de *La guia de l'autoestopista galàctic* (on 42 és "la resposta a la pregunta fonamental sobre la vida, l'univers i tot plegat"). Numèricament, però, no té res d'especial: qualsevol valor fixat funciona exactament igual de bé.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{examplebox}
+```
+**Curiositat: per què `42`?**
+
+El generador de nombres "aleatoris" d'R no és aleatori de veritat: és un algorisme determinista (un *pseudorandom number generator*) que, a partir d'una **llavor** (*seed*), produeix sempre exactament la mateixa seqüència de valors — a qualsevol ordinador, avui o d'aquí a deu anys. És precisament això el que fa útil `set.seed()`: fixar la llavor és el que garanteix la reproduïbilitat.
+
+Un detall simpàtic: molta gent fa servir `42` com a llavor preferida, per la famosa broma de *La guia de l'autoestopista galàctic* (on 42 és "la resposta a la pregunta fonamental sobre la vida, l'univers i tot plegat"). Numèricament, però, no té res d'especial: qualsevol valor fixat funciona exactament igual de bé.
+
+```{=latex}
+\end{examplebox}
+```
+:::
+
+Això significa que tothom hauria de tenir els mateixos nombres generats.\
+Si canviem la llavor, també canviaran aquests nombres.
+
+És molt pràctic guardar les dades estadístiques en un format que s’anomena **dataframe**.\
+En aquest cas, tenim una columna que representa la simulació, i cada fila correspon a un element de la mostra:
+
+```{r}
+dades_df <- data.frame(simulacio = round(dades_normal, 2))
+head(dades_df)
+```
+
+Podem guardar aquestes dades en el format `.csv` (comma-separated values), que és molt utilitzat en ciència de dades i fàcil de llegir amb qualsevol programa:
+
+```{r}
+dir.create("datasets/fonaments", recursive = TRUE, showWarnings = FALSE)
+write.csv(dades_df, "datasets/fonaments/dades_normal.csv", row.names = FALSE)
+```
+
+Per carregar-les de nou a R, farem servir la funció `read.csv`:
+
+```{r}
+dades_carregades <- read.csv("datasets/fonaments/dades_normal.csv")
+head(dades_carregades)
+```
+
+Finalment, podem representar aquestes dades com un **histograma de freqüències** i verificar que la seva distribució s’assembla a una normal amb els paràmetres que hem establert:
+
+```{r}
+hist(dades_carregades[,'simulacio'], breaks = 20, freq = FALSE, col = "lightblue",
+     main = "Histograma de les dades simulades",
+     xlab = "Valors simulats")
+
+# Afegim la corba normal teòrica amb mitjana = 5 i sd = 2
+curve(dnorm(x, mean = 5, sd = 2), col = "red", lwd = 2, add = TRUE)
+```
+En aquest cas, per representar la distribució normal, hem fet servir la funció `curve()` que genera automàticament una seqüència de valors de $x$ i calcula la funció corresponent en aquests punts per dibuixar la corba.
+
+:::: {.content-visible when-format="html"}
+::: {.callout-note}
+## El patró `d`/`p`/`q`/`r` a R
+
+Us heu fixat que hem fet servir tant `rnorm()` com `dnorm()`? No és casualitat: R fa servir un patró de noms consistent per treballar amb qualsevol distribució de probabilitat. Per a cada distribució (`norm`, però també `unif`, `binom`, `exp`, `t`, `f`, entre altres) hi ha quatre funcions bessones, que només es diferencien pel prefix:
+
+- **`r`** (*random*) — genera valors aleatoris seguint la distribució. És el que fem servir per **simular dades**: `rnorm(n, mean, sd)`.
+- **`d`** (*density*) — calcula la **densitat** de la distribució en un punt concret. És el que fem servir per dibuixar la **corba teòrica**: `dnorm(x, mean, sd)`.
+- **`p`** (*probability*) — calcula la **probabilitat acumulada** fins a un valor donat (l'àrea sota la corba a l'esquerra d'aquell punt).
+- **`q`** (*quantile*) — és la inversa de `p`: donada una probabilitat, retorna el **valor** que la deixa a l'esquerra (per exemple, per trobar valors crítics).
+
+Així, per a la distribució normal disposem de `rnorm()`, `dnorm()`, `pnorm()` i `qnorm()`. Aquest mateix patró el trobareu més endavant amb altres distribucions (`rbinom`/`dbinom`, `rexp`/`dexp`, `df`/`qf` per a la $F$ de Fisher, etc.) — un cop enteneu el patró, sabreu quina funció necessiteu sense haver de memoritzar-les una per una.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{notebox}
+```
+**El patró `d`/`p`/`q`/`r` a R**
+
+Us heu fixat que hem fet servir tant `rnorm()` com `dnorm()`? No és casualitat: R fa servir un patró de noms consistent per treballar amb qualsevol distribució de probabilitat. Per a cada distribució (`norm`, però també `unif`, `binom`, `exp`, `t`, `f`, entre altres) hi ha quatre funcions bessones, que només es diferencien pel prefix:
+
+- **`r`** (*random*) — genera valors aleatoris seguint la distribució. És el que fem servir per **simular dades**: `rnorm(n, mean, sd)`.
+- **`d`** (*density*) — calcula la **densitat** de la distribució en un punt concret. És el que fem servir per dibuixar la **corba teòrica**: `dnorm(x, mean, sd)`.
+- **`p`** (*probability*) — calcula la **probabilitat acumulada** fins a un valor donat (l'àrea sota la corba a l'esquerra d'aquell punt).
+- **`q`** (*quantile*) — és la inversa de `p`: donada una probabilitat, retorna el **valor** que la deixa a l'esquerra (per exemple, per trobar valors crítics).
+
+Així, per a la distribució normal disposem de `rnorm()`, `dnorm()`, `pnorm()` i `qnorm()`. Aquest mateix patró el trobareu més endavant amb altres distribucions (`rbinom`/`dbinom`, `rexp`/`dexp`, `df`/`qf` per a la $F$ de Fisher, etc.) — un cop enteneu el patró, sabreu quina funció necessiteu sense haver de memoritzar-les una per una.
+
+```{=latex}
+\end{notebox}
+```
+:::
+
+------------------------------------------------------------------------
+
+## Població i mostra
+
+En estadística és fonamental distingir entre **població** i **mostra**:
+
+- **Població**: el conjunt total d’elements sobre el qual volem extreure conclusions. Sovint és un concepte abstracte, que va més enllà de les unitats que tenim físicament a l’estudi. Per exemple, si treballem amb un cultiu cel·lular, la població pot referir-se a totes les cèl·lules d’aquell tipus, i no només a les del cultiu concret que analitzem.
+- **Mostra**: el conjunt concret d’unitats observades o mesurades en un experiment, que fem servir per inferir propietats de la població.
+
+La idea central és que les propietats observades en la mostra es puguin **generalitzar** a tota la població.\
+Per això, la manera com seleccionem la mostra és fonamental: ha de ser representativa i, idealment, obtinguda de manera aleatòria.
+
+La nostra simulació es pot interpretar com el procés d’obtenir, de manera aleatòria, una població teòrica que segueix una distribució normal amb paràmetres coneguts.
+
+Podem fer un mostreig de la nostra població fent servir la funció `sample`:
+```{r}
+mostra_n20 = sample(dades_normal, 20, replace=FALSE)
+```
+
+------------------------------------------------------------------------
+
+## Mitjana i variància
+
+A més de ser els paràmetres que defineixen la distribució normal, la mitjana i la variància (o la desviació estàndard) són mesures bàsiques de **centralitat** i **dispersió** de qualsevol conjunt de dades.  
+
+Per a una mostra de valors $x_1, x_2, \dots, x_n$, es poden calcular com:
+
+- **Mitjana mostral**:
+  $$
+  \bar{x} = \frac{1}{n}\sum_{k=1}^n x_k
+  $$
+
+- **Variància mostral**:
+  $$
+  s^2 = \frac{1}{n-1}\sum_{k=1}^n (x_k - \bar{x})^2
+  $$
+
+Fem servir símbols diferents per a la mitjana i la variància mostral perquè poden diferir dels de la població ($\mu$ i $\sigma^2$). També les fórmules per calcular-les són diferents.  
+
+En el cas de la **població completa**, la variància es defineix com:
+
+- **Variància poblacional**:
+  $$
+  \sigma^2 = \frac{1}{N}\sum_{k=1}^N (x_k - \mu)^2
+  $$
+
+És important recordar que la funció `var()` de R calcula la **variància mostral**, dividint per $n-1$.  
+
+Al cas anterior, on hem definit una població que segueix una distribució normal amb $\mu = 5$ i $\sigma^2 = 4$, podem calcular els valors mostrals obtinguts a partir de la simulació:
+
+```{r}
+# Exemple: càlcul de la mitjana i la variància mostral
+mean(mostra_n20)   # mitjana mostral
+var(mostra_n20)    # variància mostral
+```
+
+Els resultats mostren diferències respecte als valors de la població. Això és d’esperar, ja que la mostra és relativament petita i està subjecta a variabilitat aleatòria.
+
+Naturalment, com més gran sigui la mida de la mostra, més s’assemblaran els estimadors mostrals ($\bar{x}$ i $s^2$) als paràmetres reals de la població ($\mu$ i $\sigma^2$). Aquest principi rep el nom de **llei dels grans nombres**.
+
+Tanmateix, no és pràctic treballar sempre amb mostres molt grans. A la propera secció veurem que el **teorema del límit central** ens proporciona una eina fonamental per entendre fins a quin punt podem confiar en les estimacions dels paràmetres a partir de mostres finites.
+
+------------------------------------------------------------------------
+
+## Teorema del límit central
+
+El **Teorema del Límit Central (TLC)** estableix que, si prenem $M$ mostres independents i aleatòries (cadascuna amb $n$ elements) d’una població amb mitjana $\mu$ i variància $\sigma^2$, la distribució del conjunt de les mitjanes mostral $\bar{X} = \{\bar{x}_1,\bar{x}_2,\dots,\bar{x}_M\}$, quan $n$ augmenta, tendeix a una distribució normal amb:
+
+- Mitjana:
+  $$
+  \operatorname{Mean}(\bar{X}) = \mu
+  $$
+- Variància:
+  $$
+  \operatorname{Var}(\bar{X}) = \frac{\sigma^2}{n}
+  $$
+
+Mirem què significa això amb un exemple. Fem $M$ mostrejos de la nostra població normal amb un nombre d’elements $n$ igual a 1, 10 o 100.  Calculem la mitjana de cadascuna de les $M$ mostres en els tres casos i representem un histograma de les distribucions corresponents. Per això, primer podem definir una funció que mostreja i calcula la mitjana mostral:
+
+```{r}
+# Funció per calcular mitjanes mostral a partir d'una població
+simula_mitjanes <- function(dades, n, M) {
+  replicate(M, mean(sample(dades, n, replace = FALSE)))
+}
+```
+
+Apliquem la funció per a diferents valors de $n=1,10,100$. Farem servir un $M$ gran per veure millor l’efecte, però hem de recordar que el teorema del límit central depèn de la mida de la mostra $n$.
+
+```{r}
+# Nombre de repeticions (M = quantes mostres generem)
+M <- 1000  
+
+# Generem mostres per a n = 1, 10, 100 a partir de la població normal anterior
+mitjanes_n1   <- simula_mitjanes(dades_normal, 1, M)
+mitjanes_n10  <- simula_mitjanes(dades_normal, 10, M)
+mitjanes_n100 <- simula_mitjanes(dades_normal, 100, M)
+```
+
+Representem les dades amb histogrames amb la predicció del TLC:
+```{r}
+# Dibuixem els histogrames comparant amb la distribució normal teòrica
+par(mfrow = c(1, 3))
+
+hist(mitjanes_n1, breaks = 40, freq = FALSE, col = "lightblue",
+     main = "n = 1", xlab = "Mitjana mostral", xlim = c(0, 10))
+curve(dnorm(x, mean = 5, sd = sqrt(4/1)), col = "red", lwd = 2, add = TRUE)
+
+hist(mitjanes_n10, breaks = 40, freq = FALSE, col = "lightblue",
+     main = "n = 10", xlab = "Mitjana mostral", xlim = c(0, 10))
+curve(dnorm(x, mean = 5, sd = sqrt(4/10)), col = "red", lwd = 2, add = TRUE)
+
+hist(mitjanes_n100, breaks = 40, freq = FALSE, col = "lightblue",
+     main = "n = 100", xlab = "Mitjana mostral", xlim = c(0, 10))
+curve(dnorm(x, mean = 5, sd = sqrt(4/100)), col = "red", lwd = 2, add = TRUE)
+```
+
+Aquest experiment ens mostra l’enunciat del TLC.
+Si hi pensem, és bastant intuïtiu: com més gran és la mida de la mostra, més precisa és l’estimació de la mitjana. En conseqüència, la distribució de les mitjanes mostral es fa més estreta.  
+
+Però hi ha una altra propietat fonamental del TLC:  
+què passa si la distribució de la població **no és normal**?  
+
+Podem comprovar-ho amb un altre experiment. Només cal modificar el codi anterior i definir una població amb una distribució molt diferent, fins i tot sense una forma clara. Per exemple, podem barrejar diverses distribucions en una sola:  
+
+```{r}
+# Definim una població NO normal barrejant diverses distribucions
+dades_no_normal <- c(
+  rnorm(6000, mean = -3, sd = 2),    
+  runif(10000, min = -1, max = 4),   
+  rexp(8000, rate = 0.4) + 2,        
+  rnorm(8000, mean = 15, sd = 3),    
+  runif(10000, min = 20, max = 30)   
+)
+
+hist(dades_no_normal, breaks = 200, col = "lightblue",
+     main = "Població no normal", xlab = "Valors")
+
+```
+Calculem la mitjana i la variància d'aquesta població:
+
+<!-- Recordem que var() a R divideix per $n-1$ (estimador insesgat). Aquí fem servir la definició poblacional, dividint per $n$.-->
+```{r}
+# Calculem els paràmetres reals d’aquesta població
+mu <- mean(dades_no_normal)
+sigma2 <- sum((dades_no_normal-mu)^2)/length(dades_no_normal)
+mu; sigma2
+```
+
+Ara repetim els $M$ mostrejos amb diferents mides de mostra $n$:  
+
+```{r}
+# Generem mostres per a n = 1, 10, 100 a partir de la població no normal
+mitjanes_n1   <- simula_mitjanes(dades_no_normal, 1, M)
+mitjanes_n10  <- simula_mitjanes(dades_no_normal, 10, M)
+mitjanes_n100 <- simula_mitjanes(dades_no_normal, 100, M)
+
+# Dibuixem els histogrames comparant amb la distribució normal teòrica
+par(mfrow = c(1, 3))
+
+hist(mitjanes_n1, breaks = 50, freq = FALSE, col = "lightblue",
+     main = "n = 1", xlab = "Mitjana mostral", xlim = c(-15, 35))
+curve(dnorm(x, mean = mu, sd = sqrt(sigma2/1)), col = "red", lwd = 2, add = TRUE)
+
+hist(mitjanes_n10, breaks = 50, freq = FALSE, col = "lightblue",
+     main = "n = 10", xlab = "Mitjana mostral", xlim = c(-15, 35))
+curve(dnorm(x, mean = mu, sd = sqrt(sigma2/10)), col = "red", lwd = 2, add = TRUE)
+
+hist(mitjanes_n100, breaks = 50, freq = FALSE, col = "lightblue",
+     main = "n = 100", xlab = "Mitjana mostral", xlim = c(-15, 35))
+curve(dnorm(x, mean = mu, sd = sqrt(sigma2/100)), col = "red", lwd = 2, add = TRUE)
+```
+
+Podem veure que, encara que la població no tingui una distribució normal, la distribució de la mitjana mostral s’aproxima a la normal quan la mida de la mostra és prou gran, i la seva variància segueix la relació $\sigma^2/n$ que ja coneixíem.  
+
+El TLC és fonamental perquè garanteix que la distribució de la mitjana mostral s’aproxima a la normal. Aquest fet permet aplicar mètodes inferencials basats en la normalitat en una gran varietat de situacions pràctiques i explica la importància central de la distribució normal en estadística.
+
+------------------------------------------------------------------------
+
+

@@ -1,0 +1,165 @@
+---
+title: "Proves no paramètriques de mesures repetides"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+```{r, echo=FALSE, results="hide"}
+set.seed(124)
+
+S <- 12 # pacients
+G <- 3 # tractaments
+
+# Generem codis de pacient anonimitzats
+pacients <- sprintf("P%03d", 1:S)
+
+analgesics <- c("A", "B", "C")
+
+# Simulem un efecte: A menys efectiu, C més efectiu
+pain_levels <- c("intens", "moderat", "lleu", "sense dolor")
+
+# Generem dades en format llarg
+pain_scores <- expand.grid(
+  pacient = pacients,
+  analgesic = analgesics
+)
+
+# Assignem nivells de dolor segons el tractament
+pain_scores$dolor <- with(pain_scores, ifelse(
+  analgesic == "A",
+  sample(pain_levels, S, replace = TRUE, prob = c(0.6, 0.2, 0.1, 0.1)),
+  ifelse(
+    analgesic == "B",
+    sample(pain_levels, S, replace = TRUE, prob = c(0.1, 0.5, 0.3, 0.1)),
+    sample(pain_levels, S, replace = TRUE, prob = c(0.05, 0.15, 0.15, 0.65))
+  )
+))
+
+# Guardem CSV
+fname <- "datasets/analgesic/dolor.csv"
+write.csv(pain_scores[,c("pacient","analgesic","dolor")], fname, row.names = FALSE)
+```
+
+Quan tenim tres o més condicions relacionades (**mesures repetides** sobre els mateixos subjectes o mostres), i les dades no compleixen els supòsits de l’ANOVA de mesures repetides, podem utilitzar la **prova de Friedman**, que és l’alternativa no paramètrica adequada.
+
+## Prova de Friedman
+
+### Idea general
+
+La prova de Friedman s’aplica quan:\
+- El mateix conjunt de subjectes és avaluat sota diverses condicions.\
+- Les dades són ordinals o no segueixen una distribució normal.\
+- Es vol comprovar si hi ha diferències sistemàtiques entre condicions.
+
+Cada individu actua com el seu propi “control”: dins de cada subjecte, les condicions es classifiquen segons el rang de resposta (menor → major valor). Després, es comparen les sumes de rangs mitjanes entre condicions.
+
+---
+
+### Estadístic de Friedman
+
+Sigui $S$ el nombre de subjectes i $G$ el nombre de condicions.
+L’estadístic de Friedman $Q$ es defineix com:
+
+$$Q = \frac{12}{SG(G+1)}\sum_{j=1}^G R_j^2-3S(G+1)$$
+on $R_j$ és la suma dels rangs assignats a la condició $j$.
+
+Per mostres grans ($S > 10$), $Q$ segueix aproximadament una distribució $\chi^2$ amb $k - 1$ graus de llibertat.
+
+---
+
+### Exemple: Eficàcia percebuda de tres tractaments analgèsics
+
+En un estudi clínic, 12 pacients amb dolor crònic reben tres tractaments analgèsics (A, B i C) en ordre aleatori, amb períodes de rentat entre sessions.
+
+Després de cada tractament, els pacients avaluen el **nivell de dolor residual** en una escala ordinal de 4 nivells: intens, moderat, lleu, sense dolor.
+
+Volem comprovar si els tres tractaments produeixen diferències significatives en la percepció del dolor.
+
+Les dades es guarden al fitxer `dolor.csv`. Carreguem-les i fem una primera inspecció:
+
+```{r}
+# Carreguem el fitxer i revisem el contingut
+df <- read.csv("datasets/analgesic/dolor.csv")
+str(df)
+```
+Transformem les variables categòriques en factors:
+
+```{r}
+df$pacient <- factor(df$pacient)
+df$analgesic <- factor(df$analgesic)
+```
+
+La variable `dolor` és una escala ordinal, així que hem d’assegurar-nos que R la interpreti correctament:
+
+```{r}
+nivells_dolor <- c("sense dolor", "lleu", "moderat", "intens")
+df$dolor <- factor(df$dolor, levels = nivells_dolor, ordered = TRUE)
+```
+
+Per aplicar la prova de Friedman, convertim aquesta escala ordinal a valors numèrics ordenats (1–4):
+
+```{r}
+df$dolor_num <- as.numeric(df$dolor)
+```
+
+Ara podem aplicar la prova de Friedman, que compara els rangs dins de cada pacient, tenint en compte que les observacions estan emparellades:
+
+```{r}
+friedman <- friedman.test(dolor_num ~ analgesic | pacient, data = df)
+friedman
+```
+
+La sortida mostra l’estadístic $Q$ de Friedman i el valor $p$.
+Com que $p < 0.05$, podem rebutjar la hipòtesi nul·la i concloure que almenys un tractament té una eficàcia percebuda diferent.
+
+---
+
+### Mida de l’efecte: Kendall's W
+
+La mida de l’efecte es calcula amb **Kendall’s $W$**, que indica quina part de la variabilitat dels rangs pot atribuir-se al factor (en aquest cas, el tractament):
+
+$$W = \frac{Q}{S(G-1)}$$
+
+on $Q$ és l’estadístic de Friedman, $S$ és el nombre de subjectes, $G$ és el nombre de tractaments.
+
+Els seus valors oscil·len entre 0 (cap diferència sistemàtica) i 1 (acord perfecte entre condicions). Els llindars orientatius per interpretar-ne la magnitud són:\
+- $W \approx 0.1$: efecte petit\
+- $W \approx 0.3$: efecte mitjà\
+- $W \approx 0.5$: efecte gran
+
+Aquests valors s’han d’interpretar com a orientatius, ja que no hi ha un consens absolut a la literatura. En contextos biomèdics o biotecnològics, on la variabilitat biològica és elevada i les mostres sovint són petites, valors al voltant de $W > 0.3$ ja poden considerar-se efectes rellevants.
+
+Podem calcular-ho en R:
+
+```{r}
+Q <- friedman$statistic[[1]]
+S <- length(levels(df$pacient))
+G <- length(levels(df$analgesic))
+W <- (Q) / (S * (G - 1))
+W
+```
+
+Com que el valor de $p$ és significatiu i $W$ indica un efecte gran, podem afirmar que hi ha diferències rellevants entre tractaments.
+
+### Post hoc
+
+Quan la prova de Friedman és significativa, sabem que almenys un tractament difereix, però no quin o quins.
+Per identificar-los, cal aplicar proves post-hoc parell-a-parell, tenint en compte que les dades són aparellades (mesures repetides).
+
+La prova adequada és el **Wilcoxon signed-rank test**, amb l’argument `paired = TRUE`.
+Aquesta és l’alternativa no paramètrica a la *t* de Student per mostres aparellades:
+
+```{r}
+pairwise.wilcox.test(df$dolor_num, df$analgesic,
+                     paired = TRUE,
+                     p.adjust.method = "holm",
+                     exact = FALSE)
+```
+El paràmetre `p.adjust.method` permet triar el mètode de correcció per comparacions múltiples ("holm", "bonferroni", "BH", etc.).
+És recomanable posar `exact = FALSE` si hi ha empats o moltes dades.

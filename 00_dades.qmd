@@ -1,0 +1,133 @@
+---
+title: "Estructures de dades en R"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+
+
+En aquest capítol veurem com accedir a les dades en les estructures més habituals de R: **vectors**, **dataframes**, **llistes** i **matrius**. Aprendrem a seleccionar elements concrets, conjunts d’elements i columnes senceres.
+
+------------------------------------------------------------------------
+
+## Vectors
+
+Els vectors són la forma més bàsica d’emmagatzemar dades en R.
+
+```{r}
+# Exemple de vector
+v <- c(10, 20, 30, 40, 50)
+
+# Accés per posició
+v[1]       # primer element
+v[3]       # tercer element
+
+# Accés a múltiples elements
+v[c(2, 4)] # segon i quart element
+
+# Exclusió d’elements
+v[-1]      # tots menys el primer
+```
+
+------------------------------------------------------------------------
+
+## Dataframes
+
+Els dataframes són taules on cada columna pot ser d’un tipus diferent (numèric, factor, text).
+
+```{r}
+# Exemple de dataframe
+df <- data.frame(
+  nom = c("Anna", "Bernat", "Clara"),
+  edat = c(23, 25, 21),
+  nota = c(8.5, 7.2, 9.1)
+)
+
+# Accés a columnes
+df$edat          # columna 'edat'
+df[["nota"]]     # columna 'nota'
+
+# Accés per fila i columna
+df[1, 2]         # fila 1, columna 2 (23)
+df[ , "nom"]     # tota la columna 'nom'
+
+# Subset amb condicions
+df[df$nota > 8, ]   # files amb nota > 8
+```
+
+------------------------------------------------------------------------
+
+## Llistes
+
+Les llistes permeten guardar objectes de diferents tipus (incloent vectors i dataframes).
+
+```{r}
+# Exemple de llista
+ll <- list(
+  vector = c(1, 2, 3),
+  noms = c("X", "Y", "Z"),
+  dades = df
+)
+
+# Accés a elements de la llista
+ll[[1]]          # primer element (vector)
+ll[["noms"]]     # element amb nom "noms"
+
+# Accés dins un dataframe dins la llista
+ll$dades$nota    # columna 'nota' del dataframe guardat
+```
+
+------------------------------------------------------------------------
+
+## Matrius
+
+Les matrius són taules on totes les dades són del mateix tipus.
+
+```{r}
+# Exemple de matriu
+m <- matrix(1:9, nrow = 3, byrow = TRUE)
+
+# Accés per fila i columna
+m[2, 3]   # fila 2, columna 3
+m[ , 1]   # primera columna
+```
+
+------------------------------------------------------------------------
+
+## Com inspeccionar l’estructura d’una variable a R
+
+En R tenim diverses maneres de saber quina estructura té una variable (si és vector, dataframe, llista, etc.). Aquí tens les més útils:
+
+- `str()`\
+Mostra l’estructura interna de l’objecte de manera compacta. És molt útil per inspeccionar dades.
+
+```{r}
+df <- data.frame(a = 1:3, b = letters[1:3])
+str(df)
+```
+
+
+- `class()`\
+Et diu la classe de l’objecte (p. ex. `data.frame`, `numeric`, `list`).
+
+```{r}
+x <- c(1, 2, 3)
+class(x)
+
+class(df)
+```
+
+- `typeof()`\
+Et diu el tipus bàsic de l’objecte (p. ex. `integer`, `double`, `character`, `list`).
+
+```{r}
+typeof(x)
+
+typeof(df)
+```

@@ -1,0 +1,18 @@
+/.quarto/
+**/*.quarto_ipynb
+
+# Quarto/knitr rendered outputs (regenerate with: quarto render)
+_book/
+_book.zip
+*_files/
+*.html
+*.pdf
+*.aux
+*.log
+*.tex
+*.knit.md
+*.utf8.md
+!preamble.tex
+
+# Packaged duplicate of datasets/ (regenerate with: zip -r datasets.zip datasets)
+datasets.zip

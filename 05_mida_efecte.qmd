@@ -1,0 +1,103 @@
+---
+title: "Mida de l’efecte"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+
+```{r, echo=FALSE, results="hide"}
+df_tots <- read.csv("datasets/bioreact/bioreact_tots.csv")
+anova_bioreact <- aov(df_tots$titol ~ df_tots$medi)
+```
+
+Quan fem una prova estadística (com ANOVA o prova *t*), el valor $p$ ens diu si hi ha diferències significatives. Però no ens diu com d’importants són aquestes diferències. Amb mostres molt grans, fins i tot diferències petites poden ser significatives; amb mostres petites, diferències grans poden passar desapercebudes.
+
+Per això és fonamental anar **més enllà del valor $p$** i acompanyar el valor $p$ amb una mesura de **mida de l’efecte** (*effect size*), que quantifica la magnitud real de la diferència entre grups.
+
+------------------------------------------------------------------------
+
+## Cohen’s *d*
+
+Una de les mesures d’efecte més utilitzades és el **Cohen’s $d$**, que quantifica la diferència entre dues mitjanes en unitats de desviació estàndard:
+
+$$ d = \frac{\bar{x}_1 - \bar{x}_2}{s_p}, $$
+
+on $s_p$ és la desviació estàndard combinada (*pooled standard deviation*):
+
+$$  
+s_p = \sqrt{ \frac{(n_1 - 1)s^2_1 + (n_2 - 1)s^2_2}{n_1 + n_2 - 2} }.
+$$
+
+El Cohen’s $d$ es pot interpretar de manera aproximada amb les regles generals proposades per Cohen:\
+- $d \approx 0.2$: efecte petit\
+- $d \approx 0.5$: efecte mitjà\
+- $d \approx 0.8$: efecte gran
+
+Per exemple, un $d = 0.8$ indica que les dues mitjanes difereixen en gairebé una desviació estàndard, cosa que reflecteix una diferència clara i rellevant.
+
+En R, hi ha paquets com **`effsize`** que calculen directament aquest valor amb la funció `cohen.d`.
+
+```{r}
+# Instal·lar i carregar el paquet (només cal instal·lar-lo una vegada)
+# install.packages("effsize")
+library(effsize)
+```
+
+Calculem l'efecte entre els dos medis del nostre experiment que mostren diferències significatives, M1 i M3:
+
+```{r}
+# Ens assegurem que "medi" és un factor
+df_tots$medi <- factor(df_tots$medi)
+
+# Subset només per als medis M1 i M3
+df_M1M3 <- subset(df_tots, medi %in% c("M1", "M3"))
+
+# Eliminem nivells no utilitzats
+df_M1M3$medi <- droplevels(df_M1M3$medi)
+
+# Calculem el Cohen's d
+resultat_d <- cohen.d(titol ~ medi, data = df_M1M3)
+
+resultat_d
+
+```
+En aquest cas, el Cohen’s $d$ dona un valor negatiu, ja que el títol mitjà del medi M1 és més petit que el del M3. En valor absolut, el resultat correspon a un efecte mitjà, la qual cosa indica una diferència consistent entre aquests dos medis.
+
+**Nota**: hem tornat a definir la variable medi com a factor perquè els fitxers `.csv` només guarden les categories com a text i no com a factors. 
+
+------------------------------------------------------------------------
+
+## $\eta^2$ 
+
+Després d’aplicar proves post-hoc (Bonferroni, Holm, Tukey…), és útil calcular la mida de l’efecte per a les comparacions parell a parell que han resultat significatives, com hem fet abans.
+
+Tanmateix, quan informem dels resultats de l’ANOVA en conjunt, és habitual donar també una **mida de l’efecte global**, que ens indica fins a quin punt el factor estudiat (per exemple, el medi de cultiu) explica la variabilitat de les dades.
+
+La mesura més emprada és $\eta^2$ (**eta squared**), definida com la proporció de la variància total explicada pel factor:
+
+$$ \eta^2 = \frac{\operatorname{SS}_{\textrm{b}}}{\operatorname{SS}_{\textrm{b}}+\operatorname{SS}_{\textrm{w}}} $$
+
+on $\operatorname{SS}_{\textrm{b}}$ és la suma de quadrats entre grups i $\operatorname{SS}_{\textrm{w}}$ la suma de quadrats dins dels grups. En un ANOVA d’un sol factor, el denominador representa la variància total $\operatorname{SS}_{\textrm{tot}} = \operatorname{SS}_{\textrm{b}} + \operatorname{SS}_{\textrm{w}}$.
+
+Aquest índex respon a la pregunta: “En general, el factor té un efecte rellevant sobre la variable dependent?”
+
+A nivell orientatiu, Cohen va proposar aquests llindars:\
+- $\eta^2 \approx 0.01$: efecte petit\
+- $\eta^2 \approx 0.06$: efecte mitjà\
+- $\eta^2 \approx 0.14$: efecte gran
+
+En R, podem calcular $\eta^2$ fàcilment amb la funció `eta_squared` del paquet **`effectsize`** que s'aplica directament als resultats de l'ANOVA:
+
+```{r}
+# install.packages("effectsize")
+library(effectsize)
+
+eta_squared(anova_bioreact, partial = FALSE)
+```
+En el nostre exemple, el resultat mostra que el factor (el medi de cultiu) té un efecte de mida mitjana, coherent amb el que hem observat gràficament i amb les proves post-hoc.

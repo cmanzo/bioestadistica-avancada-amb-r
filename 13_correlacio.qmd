@@ -1,0 +1,628 @@
+---
+title: "Correlació i associació"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+
+```{r, echo=FALSE, results="hide", message=FALSE, warning=FALSE}
+set.seed(123)
+
+# Assegura directori
+dir.create("datasets/correl", recursive = TRUE, showWarnings = FALSE)
+
+# Dades mRNA–proteïna (Pearson lineal)
+n <- 30
+mRNA <- rnorm(n, mean = 10, sd = 2)        # nivell d'expressió del gen
+proteina <- 3 * mRNA + rnorm(n, mean = 0, sd = 4)  # quantitat de proteïna
+df <- data.frame (mRNA = round(mRNA, 2), proteina = round(proteina, 2))
+fname <- "datasets/correl/mRNA.csv"
+write.csv(df[,c("proteina","mRNA")], fname, row.names = FALSE)
+
+# Dades receptor (sigmoide) per a transformació logit–log
+n <- 160
+# 1) Wider dynamic range: 10^-2 .. 10^2  (4 decades)
+x <- 10^(runif(n, -2, 2)) # µM: 0.01 .. 100
+logx <- log10(x)
+
+# 2) Steep, nearly linear on the link (logit) scale
+alpha <- -0.2
+beta  <- 3.6      # larger beta = steeper S-shape in original -> lower Pearson there
+sd_eta <- 0.22    # small noise on link scale -> high Pearson after transform
+
+eta <- alpha + beta*logx + rnorm(n, 0, sd_eta)
+y   <- plogis(eta)
+
+# Keep away from 0/1 to avoid +/-Inf in logit
+y <- pmin(pmax(y, 0.01), 0.99)
+
+df <- data.frame (concentracio  = round(x,2) , activacio = round(y,2))
+fname <- "datasets/correl/receptor.csv"
+write.csv(df[,c("concentracio","activacio")], fname, row.names = FALSE)
+```
+
+En els capítols anteriors hem après a comparar entre grups per determinar si les diferències observades són estadísticament significatives.  
+En aquesta secció farem un pas més: ens centrarem en **com mesurar la relació entre dues variables contínues** dins del mateix conjunt de mostres.
+
+Per exemple:  
+- Com es relaciona el **pes corporal** amb l’**alçada**?  
+- Augmenta el **nivell de colesterol** amb l’**edat**?  
+- Té relació el **temps d’estudi** amb la **nota obtinguda**?
+
+En aquests casos, l’objectiu no és contrastar diferències, sinó **quantificar l’associació** entre dues magnituds i, si escau, **predir** una a partir de l’altra.  
+
+La noció central d’aquest capítol és la de **dependència estadística**: direm que dues variables estan associades quan tendeixen a variar conjuntament, de manera que el valor d’una aporta informació sobre l’altra.  
+
+Per descriure i quantificar aquesta dependència utilitzarem el concepte de **correlació**, una mesura adimensional que indica fins a quin punt dues variables es mouen de manera sincronitzada.  
+
+És fonamental recordar que el fet que dues variables estiguin relacionades **no implica** que una sigui la causa de l’altra.
+
+---
+
+## La correlació de Pearson
+
+### Exemple biològic
+
+Suposem que volem estudiar la relació entre l’**expressió d’un gen (mRNA)** i la **quantitat de proteïna** produïda per aquest gen en un conjunt de mostres cel·lulars.  
+En molts sistemes biològics hi ha una relació positiva —com més mRNA es transcriu, més proteïna es tradueix—, però aquesta relació no és sempre perfecta a causa de la regulació post-transcripcional, la degradació o la variabilitat tècnica.
+
+Considerem el fitxer `mRNA.csv`, que conté el resultat de 30 experiments:
+
+```{r}
+df <- read.csv('datasets/correl/mRNA.csv')
+str(df)
+```
+
+Les dues variables són numèriques i contínues.  
+Podem explorar les dades amb un diagrama de dispersió:
+
+```{r}
+with(df, plot(mRNA, proteina, pch = 19, col = "steelblue",
+              xlab = "Expressió gènica (mRNA)",
+              ylab = "Quantitat de proteïna (a.u.)",
+              main = "Relació mRNA-proteïna"))
+```
+
+Veiem que hi ha una tendència clara. Com la podem quantificar?
+
+---
+
+### El coeficient de correlació de Pearson
+
+La manera més habitual de quantificar la relació entre dues variables contínues és mitjançant el **coeficient de correlació de Pearson**, també conegut com a **coeficient de correlació lineal**.  
+
+Aquest coeficient mesura fins a quin punt dues variables segueixen una **relació lineal**, és a dir, si els punts del diagrama de dispersió s’alineen aproximadament al voltant d’una recta.  
+
+S’expressa habitualment com $r$ (en mostres) o $\rho$ (en la població). El coeficient de Pearson és la covariància de les variables estandaritzades:
+
+$$r = \frac{\sum_i (x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum_i (x_i - \bar{x})^2 \sum_i (y_i - \bar{y})^2}}$$
+
+on:\
+- $x_i, y_i$ són els valors observats de cada variable,\
+- $\bar{x}, \bar{y}$ són les seves mitjanes.
+
+El coeficient de correlació de Pearson $r$ pot prendre valors entre $-1$ i $+1$.  
+Com més proper és el valor absolut de $r$ a 1, més forta és la relació lineal entre les dues variables; com més proper és a 0, més feble o inexistent és aquesta relació.
+
+| Valor de $r$ | Tipus de relació | Descripció |
+|:---------------:|:----------------:|:------------|
+| $r = +1$ | Positiva perfecta | Tots els punts cauen exactament sobre una recta creixent |
+| $r = -1$ | Negativa perfecta | Tots els punts cauen exactament sobre una recta decreixent |
+| $r = 0$ | Cap relació lineal | Els punts estan dispersos sense cap patró clar |
+
+En una correlació **positiva**, quan una variable augmenta també ho fa l’altra: és el cas típic d’un gen que s’expressa més com més s’indueix un estímul.  
+En canvi, una correlació **negativa** indica que quan una variable creix, l’altra disminueix: per exemple, pot observar-se entre la concentració d’un inhibidor i l’activitat d’una enzima.  
+Quan $r$ és proper a zero, no hi ha cap patró lineal: els punts del diagrama de dispersió apareixen desorganitzats, i conèixer el valor d’una variable no ajuda a predir l’altra.
+
+```{r, echo=FALSE}
+par(mfrow = c(3, 5), mar = c(3, 3, 3, 1))
+
+slopes <- c(-2, -1, 0, 1, 2) # pendents molt diferents
+noise <- c(3, 6, 9) # dispersions → correlacions diferents
+
+xlim<-c(-12,12)
+ylim<-c(-35,35)
+
+
+for (n in noise) {
+for (s in slopes) {
+x <- seq(-10, 10, length.out = 50)
+y <- s * x  
+s<-ifelse(s>1E-12, s, 1 )
+y <- y + s*rnorm(50, 0, n)
+
+r <- round(cor(x, y), 2)
+
+plot(x, y, pch = 19, col = "#3366AA88",
+     main = paste0("r = ", r),
+     xlab = "", ylab = "",
+     xlim = xlim, ylim = ylim)
+abline(lm(y ~ x), col = "firebrick", lwd = 2)
+
+}
+}
+
+par(mfrow = c(1, 1))
+```
+
+És important remarcar que el coeficient $r$ **no mesura la pendent** de la relació, sinó **com de ben alineats** estan els punts al voltant d’una recta.  
+Un núvol de punts molt pròxim a una recta, independentment de si és més inclinada o més plana, tindrà una correlació forta.
+
+**Nota:** un valor $r = 0$ **no implica independència** entre les variables. Pot existir una relació clara però **no lineal**, com en una resposta sigmoide o parabòlica, que Pearson no detecta.
+
+---
+
+### Càlcul en R
+
+Podem calcular la correlació entre les variables amb la funció `cor`:
+
+```{r, eval=FALSE, results="hide"}
+cor(df$mRNA, df$proteina)
+```
+
+o: 
+
+```{r}
+with(df, cor(mRNA, proteina))
+```
+
+
+Una alternativa és fer servir `cor.test()`:
+
+```{r}
+cor_test <- cor.test(df$mRNA, df$proteina, method = "pearson")
+cor_test
+```
+On el coeficient $r$ correspon a:
+
+```{r}
+cor_test$estimate[[1]]
+```
+
+Veiem que, a part del coeficient de correlació, la funció retorna més informació.  
+Com veurem tot seguit, en realitat el que estem realitzant és un **contrast d’hipòtesis** per comprovar si la correlació observada és estadísticament significativa.
+
+---
+
+### Contrast d’hipòtesis
+
+El test de correlació de Pearson permet avaluar si la correlació observada és estadísticament significativa. El contrast es formula com:
+
+$$
+\begin{cases}
+H_0: \rho = 0 & \text{(no hi ha relació lineal)} \\
+H_1: \rho \neq 0 & \text{(hi ha relació lineal significativa)}
+\end{cases}
+$$
+Per fer-ho, calcula un **estadístic t de Student**, basat en el valor de la correlació $r$ i la mida de la mostra $n$:
+
+$$
+t = r \sqrt{\frac{n - 2}{1 - r^2}}
+$$
+
+Sota la hipòtesi nul·la $H_0: \rho = 0$, aquest estadístic segueix aproximadament una **distribució t** amb $(n - 2)$ graus de llibertat.  
+El test, per tant, mesura **quant de gran és la correlació observada** comparada amb el que esperaríem per atzar.
+
+Si el valor absolut de $t$ és prou alt (o el $p$-valor prou petit), rebutgem $H_0$ i concloem que existeix una **relació lineal significativa** entre les dues variables. El test per defecte és bilateral, la versió unilateral pot ser justificable si hi ha direcció predefinida. 
+
+La funció `cor.test()` calcula l’estadístic $t$ i el $p$-valor corresponent.  
+Si $p < 0.05$, rebutgem $H_0$ i concloem que existeix una correlació lineal significativa entre les dues variables. En el nostre exemple:
+
+```{r}
+cor_test$p.value
+```
+
+---
+
+### Limitacions i bones pràctiques
+
+El coeficient de Pearson és una eina molt potent per descriure relacions **lineals**, però cal utilitzar-lo amb precaució i interpretar-lo en el seu context.
+
+En primer lloc, Pearson **només detecta relacions lineals**.  
+Si la relació entre les dues variables és corbada, com sovint passa en processos **enzimàtics**, **cinètiques de saturació** o respostes **sigmoides**, el valor de $r$ pot ser molt proper a zero tot i existir una dependència evident.  
+En aquests casos, un diagrama de dispersió pot revelar un patró clar que el coeficient no reflecteix.
+
+A més, Pearson és **molt sensible als valors extrems** (*outliers*).  
+Un sol punt allunyat de la resta pot alterar substancialment la correlació, fent-la semblar més forta o més dèbil del que realment és.  
+Per això, abans de calcular $r$, és imprescindible inspeccionar visualment les dades i comprovar si hi ha observacions atípiques o errors de mesura.
+
+Perquè el contrast d’hipòtesis de Pearson sigui estadísticament vàlid, s’assumeix que el parell de variables $(x,y)$ segueix aproximadament una **distribució normal bivariant**, amb un núvol de punts de forma el·líptica i una dispersió similar al llarg de la recta.
+Si les dades són molt asimètriques, presenten valors extrems o no són contínues (p. ex. variables **ordinals**), és més adequat utilitzar correlacions basades en rangs, com les de **Spearman** o **Kendall**, que explorarem a continuació.
+
+---
+
+## Transformacions i correlació de Pearson
+
+### Exemple biològic
+
+Suposem que mesurem l'activació d’un receptor a concentracions de lligand que varien entre 0.01 µM i 100 µM (quatre ordres de magnitud). L'activació correspon a la fracció de receptors activats.
+
+```{r}
+df <- read.csv('datasets/correl/receptor.csv')
+str(df)
+```
+
+A l’escala original, la relació entre activació i concentració és clarament no lineal:
+
+```{r}
+with(df, plot(concentracio, activacio, pch = 19, col = "steelblue",
+     xlab = "Concentració (uM)", ylab = "Activació",
+     main = "Relació original"))
+```
+
+La correlació de Pearson sobre les dades originals és moderada:
+
+```{r}
+with(df, cor(activacio, concentracio, method = "pearson"))
+```
+
+En moltes situacions biològiques les relacions no són lineals en l’escala original, sinó que segueixen patrons monòtons o de saturació. Això no vol dir que no puguem aplicar el coeficient de **Pearson**: si transformem adequadament les dades, sovint podem **linearitzar la relació** i recuperar una correlació interpretable.
+
+Com el rang de concentracions és molt ampli, és millor representar aquestes dades en una escala semilogarítmica:
+
+```{r}
+with(df, plot(log10(concentracio), activacio, pch = 19, col = "steelblue",
+     xlab = "log10(Concentració (uM))", ylab = "Activació",
+     main = "Escala semilogarítmica"))
+```
+
+Aquesta gràfica mostra que la relació entre la **concentració** i la **resposta observada** és **sigmoide**.  
+Això és típic dels casos on la resposta s’incrementa ràpidament al voltant d’una concentració crítica (EC$_{50}$) i després satura.
+
+El model teòric que descriu aquest comportament és l’equació de **Hill**:
+
+$$ R^* = \frac{[L]^n}{K_d^n + [L]^n} $$
+
+on:\
+- $R^*$ és la fracció de receptors activats (entre 0 i 1),\
+- $[L]$ és la concentració del lligand,\
+- $K_d$ és la constant de dissociació,\
+- $n$ és el coeficient de cooperativitat.
+
+Quan $[L]$ és molt petit, la resposta és quasi nul·la; quan és molt gran, la resposta satura prop de 1.
+
+A partir de l'equació de Hill, podem linearitzar aquesta corba aplicant una transformació de la resposta. Per això, farem servir la funció **logit base 10**.  Més endavant parlarem de la **logit** en més detall, quan parlarem de la regressió logística. De moment, considerem-la només com a una eina matemàtica per a la linearització. La podem definir en R com:
+
+```{r}
+logit10 <- function(p) log10((p + 1e-12) / (1 - p + 1e-12))
+```
+
+on els valors `1e-12` eviten que hi puguin haver valors infinits. Aquesta astúcia és habitual en dades biològiques, on sovint hi ha saturacions properes a 0 o 1.
+
+**Nota**: en estadística, el logit està definit habitualment amb el logaritme natural. Aquí fem servir el logaritme base 10 perquè la representació és més intuïtiva en escala logarítmica de concentracions.
+
+
+Prenent la **logit base 10** de la resposta $R^*$:
+
+$$
+\text{logit}_{10}(R^*) = \log_{10}\!\left(\frac{R^*}{1 - R^*}\right)
+$$
+
+i substituint l’expressió de $R^*$ a l’equació de Hill, obtenim la seva **forma linealitzada**:
+
+$$
+\text{logit}_{10}(R^*) = n \log_{10}([L]) - n \log_{10}(K_d)
+$$
+
+Això mostra clarament que, en coordenades **logit–log**, la relació és **lineal**, amb:\
+- pendent $n$ (coeficient de cooperativitat),\
+- intersecció $-n \log_{10}(K_d)$.
+
+Podem verificar que la relació esdevé quasi lineal:
+
+```{r}
+with(df, plot(log10(concentracio), logit10(activacio), pch = 19, col = "firebrick",
+xlab = "log10(Concentració (uM))",
+ylab = "logit10(Activació)",
+main = "Relació linearitzada Logit-Log"))
+```
+
+i la correlació augmenta notablement:
+
+```{r}
+with(df, cor(log10(concentracio), logit10(activacio), method = "pearson"))
+```
+
+---
+
+### Quan té sentit transformar les dades
+
+El coeficient de Pearson mesura la força d’una relació **lineal**, però moltes relacions biològiques són de tipus **exponencial**, **potencial** o **sigmoide**.  
+Amb una transformació apropiada, podem fer que la relació sigui lineal i que, per tant, Pearson sigui vàlid.
+
+| Tipus de relació                          | Transformació que la fa lineal                | Exemple biològic                               |
+|-------------------------------------------|-----------------------------------------------|------------------------------------------------|
+| Exponencial ($y = a e^{bx}$)              | logaritme de $y$                              | Creixement bacterià, degradació exponencial    |
+| Potencial ($y = ax^b$)                    | logaritme de $x$ i de $y$                     | Al·lometria: massa vs. mida corporal           |
+| Sigmoide (Hill / logística)               | logit de la resposta i logaritme de la concentració | Activació de receptors, canals iònics         |
+| Variable log-normal (no és relació X–Y)   | logaritme de la variable                      | Distribucions de concentracions o temps        |
+
+Aquestes transformacions no canvien la informació de les dades, sinó la manera com la relació es representa gràficament.
+
+Quan la forma de la relació és desconeguda o irregular, les transformacions deixen de ser útils, i és aquí on entren en joc les correlacions basades en rangs.
+
+---
+
+### Interpretació
+
+Quan transformem les dades no estem “forçant” Pearson, sinó adaptant l’escala a la naturalesa del fenomen.  
+Moltes lleis empíriques de la biologia, com la llei al·lomètrica o la cinètica de Michaelis–Menten, són lineals en espais transformats.
+
+Per tant:\
+- Si la teoria o el context biològic suggereixen una relació coneguda, és **correcte aplicar Pearson després d’una transformació**.\
+- Si la forma de la relació és desconeguda, és millor utilitzar mesures **no paramètriques** com Spearman o Kendall.
+
+---
+
+### Precaucions
+
+- Interpreta sempre la correlació en **l’escala transformada**, no en les dades originals.  
+- Si la transformació genera valors no definits (p. ex. log de zero o negatius), utilitza versions segures com `log1p()` o transforma només la part positiva.  
+- Comprova visualment que la transformació **ha linearitzat realment la relació**.
+
+En resum, quan la relació és **no lineal però coneguda**, aplicar una transformació coherent pot permetre’ns utilitzar el **coeficient de Pearson** de manera informativa i rigorosa.
+
+---
+
+## Per què altres tipus de correlació?
+
+Fins ara hem vist que Pearson funciona bé en relacions lineals o que poden linearitzar-se mitjançant transformacions adequades.
+Tanmateix, en moltes situacions biològiques les relacions no són estrictament lineals, i les transformacions no sempre són suficients o apropiades per capturar-ne la forma real.
+De vegades, la relació entre dues variables pot ser desconeguda a priori, i no disposem d’un model teòric que ens indiqui quina transformació aplicar.
+En altres casos, les respostes cel·lulars o fisiològiques presenten un comportament de saturació (com les cinètiques enzimàtiques o la unió de receptors), o bé una relació monòtona però corbada, en què les variables canvien en la mateixa direcció però no de manera proporcional.
+
+En aquestes situacions, el coeficient de Pearson pot donar valors propers a zero tot i existir una dependència evident.
+Per tal de quantificar aquest tipus de relacions, fem servir mesures no paramètriques **basades en rangs**, com les correlacions de Spearman i Kendall, que avaluen l’associació segons l’**ordre dels valors**, independentment de la seva escala o magnitud. Spearman i Kendall no assumeixen normalitat bivariant ni homocedasticitat i són robustos a transformacions monòtones.
+
+---
+
+## Correlació de Spearman
+
+La **correlació de Spearman** ($r_s$ o $\rho_s$) és simplement la **correlació de Pearson aplicada als rangs de les variables**.  
+
+En comptes de treballar amb els valors originals $x_i$ i $y_i$, s’assigna a cada observació la seva **posició ordenada** (rang).  
+A partir d’aquests rangs, es calcula el coeficient com:
+
+$$
+r_s = 1 - \frac{6 \sum_i d_i^2}{n(n^2 - 1)}
+$$
+
+on $d_i$ és la diferència entre els rangs de $x_i$ i $y_i$.  
+
+Aquesta expressió és vàlida quan no hi ha empats; si n’hi ha, es fa servir la correlació de Pearson sobre els rangs directament.
+
+---
+
+### Interpretació
+
+La correlació de Spearman mesura **relacions monòtones**: si una variable tendeix a augmentar quan ho fa l’altra (no necessàriament de manera proporcional), $r_s$ serà positiu; si una tendeix a disminuir, $r_s$ serà negatiu.
+
+- $r_s = +1$ indica que les variables són **perfectament ordenades en el mateix sentit**.  
+- $r_s = -1$ indica **ordre invers**.  
+- $r_s = 0$ indica absència d’associació monòtona.
+
+Com que Spearman treballa amb els rangs, és **independent de l’escala** o unitats de mesura, és **insensible a transformacions monòtones** com logaritmes o exponencials i molt més **robust a valors extrems**. 
+
+---
+
+### Exemple: resposta biològica sigmoide
+
+Com hem vist abans, les respostes sigmoides són un exemple típic de relació monòtona però no lineal. En aquests casos, la correlació de Pearson pot sortir baixa perquè els punts no segueixen una recta, mentre que la correlació de Spearman, que es basa només en l’ordre dels valors, detecta perfectament la dependència:
+
+
+```{r}
+cor(df$concentracio, df$activacio, method = "spearman")
+```
+Recordem que la correlació de Spearman és equivalent a aplicar Pearson sobre els rangs, i ho podem comprovar explícitament:
+
+```{r}
+cor(rank(df$concentracio), rank(df$activacio), method = "pearson")
+```
+
+Per entendre visualment per què Spearman captura la relació, podem representar el diagrama de dispersió dels rangs. En aquesta escala, qualsevol relació monòtona es transforma en una forma aproximadament lineal:
+
+```{r}
+with(df, plot(rank(concentracio), rank(activacio), pch = 19, col = "darkgreen",
+    xlab = "Rang de la concentració",
+    ylab = "Rang de l'activació",
+     main = "Correlació de Spearman: rangs ordenats"))
+```
+
+En aquest gràfic veiem clarament que, encara que la resposta original sigui sigmoide, els rangs de les dues variables augmenten conjuntament de manera consistent. És aquesta coherència en l’ordre —i no la forma de la corba— el que Spearman quantifica.
+
+---
+
+## Correlació de Kendall
+
+La **tau de Kendall** ($\tau$) és una altra mesura basada en rangs. Igual que Spearman, Kendall mesura la força d’una relació monòtona, però ho fa d’una manera més robusta i intuïtiva, basada en la concordança d’ordres.  En lloc de calcular diferències de rangs, Kendall compta **parelles concordants i discordants**:
+
+- Una parella $(x_i, y_i)$ i $(x_j, y_j)$ és **concordant** si els ordres de $x$ i $y$ coincideixen (totes dues creixen o totes dues decreixen).  
+- És **discordant** si un augment en $x$ correspon a una disminució en $y$.  
+
+El coeficient s’expressa com:
+
+$$
+\tau = \frac{N_C - N_D}{\tfrac{1}{2} n (n-1)}
+$$
+
+on $N_C$ és el nombre de parelles concordants i $N_D$ el de discordants.
+
+---
+
+### Interpretació
+
+El valor de $\tau$ oscil·la entre $-1$ i $+1$:
+
+- $\tau = +1$  → totes les parelles són concordants  
+- $\tau = -1$  → totes les parelles són discordants  
+- $\tau = 0$   → no hi ha associació d’ordre  
+
+Aplicada a l'exemple anterior:
+
+```{r}
+cor(df$concentracio, df$activacio, method = "kendall")
+```
+
+La correlació de Kendall detecta la dependència monòtona però sol ser **més conservadora** que Spearman (valors més petits en magnitud) encara que **més robusta** davant empats i mostres petites.
+
+:::: {.content-visible when-format="html"}
+::: {.callout-tip}
+## Curiositat: per què τ de Kendall dona valors més petits que ρ de Spearman?
+
+No hi ha res estrany en el mecanisme: $\tau$ i $\rho$ de Spearman compten coses diferents (parelles concordants l'una, diferències de rangs l'altra), de manera que els seus valors numèrics no són directament comparables. Per a dades que segueixen aproximadament una distribució normal bivariant, existeix una relació aproximada entre totes dues:
+
+$$
+\tau \approx \frac{2}{\pi} \arcsin(\rho)
+$$
+
+Així, un $\rho$ de Spearman de $0{,}9$ correspon a una $\tau$ d'uns $0{,}71$; un $\rho$ de $0{,}5$ correspon a una $\tau$ d'uns $0{,}33$. La diferència de magnitud, doncs, no vol dir que Kendall "trobi menys relació" — és, simplement, una escala diferent.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{examplebox}
+```
+**Curiositat: per què τ de Kendall dona valors més petits que ρ de Spearman?**
+
+No hi ha res estrany en el mecanisme: $\tau$ i $\rho$ de Spearman compten coses diferents (parelles concordants l'una, diferències de rangs l'altra), de manera que els seus valors numèrics no són directament comparables. Per a dades que segueixen aproximadament una distribució normal bivariant, existeix una relació aproximada entre totes dues:
+
+$$
+\tau \approx \frac{2}{\pi} \arcsin(\rho)
+$$
+
+Així, un $\rho$ de Spearman de $0{,}9$ correspon a una $\tau$ d'uns $0{,}71$; un $\rho$ de $0{,}5$ correspon a una $\tau$ d'uns $0{,}33$. La diferència de magnitud, doncs, no vol dir que Kendall "trobi menys relació" — és, simplement, una escala diferent.
+
+```{=latex}
+\end{examplebox}
+```
+:::
+
+---
+
+## Bones pràctiques
+
+- Utilitza **Pearson** quan esperis una relació lineal i les dades siguin aproximadament normals o quan les relacions són conegudes i permeten linearització.
+- Fes servir **Spearman** o **Kendall** quan hi hagi relacions desconegudes, **no lineals però monòtones**, valors extrems o variables **ordinals**.  
+- En mostres petites o amb molts empats, **Kendall** tendeix a ser més fiable.  
+- En conjunts grans de dades, **Spearman** és més eficient computacionalment.
+
+---
+
+## Correlació *vs.* causalitat
+
+Fins ara hem vist com quantificar l’associació entre dues variables. Tanmateix, és fonamental no confondre **correlació** amb **causalitat**.
+
+Confondre-les és una fal·làcia lògica ben coneguda:\
+- *post hoc ergo propter hoc* (“després d’això, per tant a causa d’això”)\
+- *cum hoc ergo propter hoc* (“amb això, per tant a causa d’això”)
+
+Aquestes fal·làcies descriuen la tendència humana a interpretar que, si dues coses passen una darrere l’altra o al mateix temps, una és causa de l’altra, quan en realitat només estan associades o, fins i tot, només coincideixen per atzar.
+
+Aquest punt és especialment crític en biomedicina, on moltes variables evolucionen conjuntament amb l’edat, l’estil de vida, l’estat de salut, els hàbits alimentaris o factors ambientals. La correlació ens diu que dues variables varien juntes, però no ens diu per què. Per això, “correlació ≠ causalitat” és un dels principis més importants de l’estadística aplicada i una de les fonts més freqüents d’errors d’interpretació en estudis observacionals.
+
+Una correlació pot sorgir per diversos motius:
+
+1. Causalitat directa: *A provoca B*  
+Ex.: augmentar la dosi d’un medicament redueix la pressió arterial.
+
+2. Causalitat inversa: *B provoca A*  
+Ex.: pacients més greus visiten més sovint el metge (no és que el metge els posi malalts).
+
+3. Variable de confusió (causa comuna): *C provoca A i B*  
+Ex.: l’edat augmenta tant la prevalença de malalties cardiovasculars com l’ús de medicació.
+
+4. Coincidència 
+Correlacions generades per fluctuacions aleatòries, especialment en conjunts de dades grans.
+
+5. Biaixos o errors de mesura  
+Mesures imperfectes, mala selecció de la mostra o procediments inconsistents poden generar correlacions artificials.
+
+La causalitat **no es pot provar amb correlació sola**. Calen eines complementàries com: experiments controlats aleatoritzats (RCE), intervencions experimentals (knockouts, inhibidors, canvis controlats de condicions), models d’inferència causal, mètodes observacionals.
+
+:::: {.content-visible when-format="html"}
+::: {.callout-tip}
+## Curiositat: la paradoxa de Simpson
+
+De vegades, una tendència que es veu clarament en el conjunt de les dades **desapareix o fins i tot s'inverteix** quan es divideixen les dades per grups — un fenomen conegut com la **paradoxa de Simpson**.
+
+Imaginem que comparem dos antibiòtics, A i B, mesurant la taxa de curació global. Si mirem totes les dades juntes, l'antibiòtic B sembla donar pitjors resultats que A. Però si separem els pacients segons la gravetat de la infecció (lleu / greu), resulta que B funciona **millor** que A dins de cada subgrup per separat. La causa: B es va administrar amb més freqüència als casos greus (que ja parteixen d'un pitjor pronòstic), de manera que la seva taxa d'èxit global queda "contaminada" per aquest desequilibri.
+
+La lliçó pràctica: abans de treure conclusions d'una correlació o comparació agregada, cal preguntar-se si hi ha alguna variable de confusió (com la gravetat, en aquest cas) distribuïda de manera desigual entre els grups que es comparen.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{examplebox}
+```
+**Curiositat: la paradoxa de Simpson**
+
+De vegades, una tendència que es veu clarament en el conjunt de les dades **desapareix o fins i tot s'inverteix** quan es divideixen les dades per grups — un fenomen conegut com la **paradoxa de Simpson**.
+
+Imaginem que comparem dos antibiòtics, A i B, mesurant la taxa de curació global. Si mirem totes les dades juntes, l'antibiòtic B sembla donar pitjors resultats que A. Però si separem els pacients segons la gravetat de la infecció (lleu / greu), resulta que B funciona **millor** que A dins de cada subgrup per separat. La causa: B es va administrar amb més freqüència als casos greus (que ja parteixen d'un pitjor pronòstic), de manera que la seva taxa d'èxit global queda "contaminada" per aquest desequilibri.
+
+La lliçó pràctica: abans de treure conclusions d'una correlació o comparació agregada, cal preguntar-se si hi ha alguna variable de confusió (com la gravetat, en aquest cas) distribuïda de manera desigual entre els grups que es comparen.
+
+```{=latex}
+\end{examplebox}
+```
+:::
+
+---
+
+:::: {.content-visible when-format="html"}
+::: {.callout-tip}
+## Curiositat: les correlacions espúries
+
+Una **correlació espúria** és una associació aparent entre dues variables que **no tenen cap relació causal**, però que mostren una correlació alta degut a:
+
+- tendències temporals compartides,
+- estacionalitat,
+- efectes de tercer ordre,
+- coincidències aleatòries,
+- "pesca de correlacions" (provar moltes combinacions fins que en surt una significativa).
+
+Exemples famosos (popularitzats per [Spurious Correlations](https://www.tylervigen.com/spurious-correlations)):
+
+- Consum de formatge per càpita i morts per asfíxia amb llençols.
+- Pel·lícules de Nicolas Cage i mortalitat per caiguda dins d’una piscina.
+- Gastos en recerca en ciències espacials i suïcidis per estrangulament.
+
+Tot i tenir coeficient de correlació linear $r > 0.9$, no hi ha cap mecanisme biològic, social ni físic que les relacioni.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{examplebox}
+```
+**Curiositat: les correlacions espúries**
+
+Una **correlació espúria** és una associació aparent entre dues variables que **no tenen cap relació causal**, però que mostren una correlació alta degut a:
+
+- tendències temporals compartides,
+- estacionalitat,
+- efectes de tercer ordre,
+- coincidències aleatòries,
+- "pesca de correlacions" (provar moltes combinacions fins que en surt una significativa).
+
+Exemples famosos (popularitzats per [Spurious Correlations](https://www.tylervigen.com/spurious-correlations)):
+
+- Consum de formatge per càpita i morts per asfíxia amb llençols.
+- Pel·lícules de Nicolas Cage i mortalitat per caiguda dins d’una piscina.
+- Gastos en recerca en ciències espacials i suïcidis per estrangulament.
+
+Tot i tenir coeficient de correlació linear $r > 0.9$, no hi ha cap mecanisme biològic, social ni físic que les relacioni.
+
+```{=latex}
+\end{examplebox}
+```
+:::
+

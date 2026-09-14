@@ -1,0 +1,41 @@
+project:
+  type: book
+  post-render:
+    - ./neteja_post_render.sh
+
+book:
+  title: "Bioestadística Avançada amb R"
+  author: "Carlo Manzo"
+  chapters:
+    - index.qmd
+    - 02_fonaments.qmd
+    - 03_ANOVA.qmd
+    - 04_posthoc.qmd
+    - 05_mida_efecte.qmd
+    - 06_suposits.qmd
+    - 07_dos_factors.qmd
+    - 08_mesures_rep.qmd
+    - 09_transformacions.qmd
+    - 10_no_parametriques.qmd
+    - 11_posthoc_nopar.qmd
+    - 12_mesures_rep_nopar.qmd
+    - 13_correlacio.qmd
+    - 14_regr_lin.qmd
+    - 15_regr_log.qmd
+    - 16_xarxes_neur.qmd
+  appendices:
+    - 00_dades.qmd
+    # Formularis de referència (acumulatius, no inclosos al llibre compilat;
+    # es distribueixen per separat com a fulls de repàs)
+    #- 0x_formulari.qmd
+    #- 1x_formulari.qmd
+    #- 2x_formulari.qmd
+
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: book
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex

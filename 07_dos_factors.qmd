@@ -1,0 +1,299 @@
+---
+title: "ANOVA de dos factors i interaccions"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+
+En els exemples anteriors hem vist com utilitzar l’ANOVA per comprovar si un únic factor (per exemple, el medi de cultiu) té un efecte significatiu sobre una variable quantitativa (com el títol del cultiu).
+
+Tanmateix, en experiments reals sovint intervenen més d’un factor. En el nostre cas, els estudiants del laboratori de bioreactors no només varien el medi de cultiu, sinó també el nivell d’agitació. És raonable preguntar-se:\
+- Quin d’aquests dos factors té més influència sobre el títol final?\
+- Interactuen entre ells? És a dir, l’efecte del medi és el mateix per a totes les agitacions, o depèn de la velocitat d’agitació?
+
+Aquest tipus de preguntes les podem abordar amb una **ANOVA de dos factors** (*two-way ANOVA*), que ens permet analitzar:\
+1. L’efecte del primer factor (p. ex. el medi de cultiu).\
+2. L’efecte del segon factor (p. ex. l’agitació).\
+3. L’efecte combinat o interacció entre tots dos factors.
+
+L’ANOVA de dos factors és una extensió natural de l’ANOVA d’un factor, però ofereix molta més informació: no només ens diu si cada factor té un efecte, sinó també **si actuen de manera independent o si modulen mútuament el seu impacte**. Per exemple, si no hi ha interacció, podem dir que el medi afecta sempre igual independentment de l’agitació. Si hi ha interacció, pot ser que un medi funcioni millor a baixa agitació però pitjor a alta agitació, cosa molt rellevant en bioprocessos.
+
+------------------------------------------------------------------------
+
+## El nostre dataset
+
+Treballarem amb el mateix conjunt de dades que abans, carregant de nou el fitxer complet:
+
+```{r}
+df_tots <- read.csv("datasets/bioreact/bioreact_tots.csv")
+str(df_tots)
+```
+
+Aquest dataset inclou:\
+- Medi de cultiu (`medi`) — factor categòric amb tres nivells.\
+- Agitació (`agitacio`) — factor categòric amb quatre nivells; l’havíem deixat de banda des del capítol 3, i ara és el moment d’incorporar-la com a segon factor.\
+- Títol (titol) — variable dependent quantitativa (g/L).
+
+Transformem les variables categòriques que farem servir i mirem quantes repeticions hi ha per cel·la medi $\times$ agitació:
+
+```{r}
+df_tots$medi <- factor(df_tots$medi)
+df_tots$agitacio <- factor(df_tots$agitacio)
+
+# Taula de repeticions per combinació medi × agitació
+table(df_tots$agitacio, df_tots$medi)
+```
+
+Cada cel·la representa una combinació medi $\times$ agitació i conté 35 repeticions.
+
+**Nota**: Sabem que aquestes dades corresponen a grups (bioreactors) i dies diferents, fet que introdueix una certa dependència potencial. Tot i això, tal com hem fet abans, assumirem **independència** a efectes pràctics en aquesta anàlisi, ja que la variabilitat associada a bioreactor i data queda diluïda en considerar només l’efecte principal del medi i l’agitació. Per modelar explícitament la dependència per subjecte (bioreactor), hauríem de fer servir un model de mesures repetides (vegeu el capítol següent).
+
+------------------------------------------------------------------------
+
+## Notació de les observacions
+
+Siguin:\
+- $G_A$: nombre de nivells del **factor A** (p. ex. medi de cultiu),\
+- $G_B$: nombre de nivells del **factor B** (p. ex. agitació),\
+- $n$: nombre de repeticions per cel·la (assumim equilibrat, $n_{ij} = n$).
+
+Denotem les observacions per:
+
+$$
+x_{ijk}, \quad
+i = 1,\dots,G_A;\quad
+j = 1,\dots,G_B;\quad
+k = 1,\dots,n
+$$
+
+on $x_{ijk}$ pertany a la cel·la identificada per la combinació $(A_i,B_j)$.
+
+Esquema de taula:
+
+$$
+\begin{array}{c|c|c|c|c}
+ & \text{Factor B, } j=1 & \text{Factor B, } j=2 & \phantom{\text{xxx}} \dots  \phantom{\text{xxx}} & \text{Factor B, } j=G_B \\
+\hline
+\text{Factor A, } i=1 & x_{111},\, x_{112},\, \dots & x_{121},\, x_{122},\, \dots & \dots & x_{1G_B1},\, x_{1G_B2},\, \dots \\
+\text{Factor A, } i=2 & x_{211},\, x_{212},\, \dots & x_{221},\, x_{222},\, \dots & \dots & x_{2G_B1},\, x_{2G_B2},\, \dots \\
+\text{Factor A, } i=3 & x_{311},\, x_{312},\, \dots & x_{321},\, x_{322},\, \dots & \dots & x_{3G_B1},\, x_{3G_B2},\, \dots \\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+\text{Factor A, } i=G_A & x_{G_A11},\, x_{G_A12},\, \dots & x_{G_A21},\, x_{G_A22},\, \dots & \dots & x_{G_AG_B1},\, x_{G_AG_B2},\, \dots \\
+\end{array}
+$$
+
+------------------------------------------------------------------------
+
+## Notació de les mitjanes
+
+Mantenim la mateixa notació utilitzada anteriorment:
+
+$$ \begin{aligned}
+\bar{x}_{\cdot\cdot\cdot} &= \frac{1}{G_A G_B n} \sum_{i=1}^{G_A} \sum_{j=1}^{G_B} \sum_{k=1}^{n} x_{ijk} && \text{(Mitjana global)}\\[6pt]
+\bar{x}_{i\cdot\cdot} &= \frac{1}{G_B n} \sum_{j=1}^{G_B} \sum_{k=1}^{n} x_{ijk} && \text{(Mitjana nivell } i \text{ d’A)}\\[6pt]
+\bar{x}_{\cdot j \cdot} &= \frac{1}{G_A n} \sum_{i=1}^{G_A} \sum_{k=1}^{n} x_{ijk} && \text{(Mitjana nivell } j \text{ de B)}\\[6pt]
+\bar{x}_{ij\cdot} &= \frac{1}{n} \sum_{k=1}^{n} x_{ijk} && \text{(Mitjana cel·la } A_i \times B_j)
+\end{aligned} $$
+
+------------------------------------------------------------------------
+
+## Construcció del model ANOVA de dos factors amb interacció
+
+Quan tenim dos factors, l’ANOVA permet avaluar tres hipòtesis nul·les:
+
+-   $H_{0,A}$: **no hi ha efecte del factor A** (p. ex. medi).\
+-   $H_{0,B}$: **no hi ha efecte del factor B** (p. ex. agitació).\
+-   $H_{0,AB}$: **no hi ha interacció entre A i B**.
+
+La interacció $A\times B$ indica que **l’efecte d’un factor depèn del nivell de l’altre**.
+
+------------------------------------------------------------------------
+
+### Variabilitat i sumes de quadrats
+
+La variància total es descompon en **quatre components**:
+
+$$
+\operatorname{SS}_{\textrm{total}} = \operatorname{SS}_{\textrm{A}} + \operatorname{SS}_{\textrm{B}} + \operatorname{SS}_{\textrm{A} \times \textrm{B}} + \operatorname{SS}_{\textrm{res}}
+$$
+
+on:
+
+-   **Factor A**\
+    $$ \operatorname{SS}_{\textrm{A}} = G_B n \sum_{i=1}^{G_A} \left(\bar{x}_{i\cdot\cdot} - \bar{x}_{\cdot\cdot\cdot}\right)^2 $$
+-   **Factor B**\
+    $$\operatorname{SS}_{\textrm{B}}  = G_A n \sum_{j=1}^{G_B} \left(\bar{x}_{\cdot j \cdot} - \bar{x}_{\cdot\cdot\cdot}\right)^2$$
+-   **Interacció A $\times$ B**\
+    $$ \operatorname{SS}_{\textrm{A} \times \textrm{B}} = n \sum_{i=1}^{G_A} \sum_{j=1}^{G_B} 
+    \left(\bar{x}_{ij\cdot} - \bar{x}_{i\cdot\cdot} - \bar{x}_{\cdot j \cdot} + \bar{x}_{\cdot\cdot\cdot}\right)^2 $$
+-   **Error (residual)**\
+    $$\operatorname{SS}_{\textrm{res}} = \sum_{i=1}^{G_A} \sum_{j=1}^{G_B} \sum_{k=1}^{n} \left(x_{ijk} - \bar{x}_{ij\cdot}\right)^2$$
+
+------------------------------------------------------------------------
+
+### Graus de llibertat
+
+Cada component de la descomposició de la variància té associat un cert nombre de **graus de llibertat**, que reflecteixen quants valors poden variar lliurement un cop fixades les mitjanes corresponents.
+
+-   **Factor A**\
+    Té $G_A - 1$ graus de llibertat, ja que només $G_A - 1$ de les mitjanes dels nivells del factor A poden variar de manera independent (la darrera queda determinada per la mitjana global).
+
+-   **Factor B**\
+    Té $G_B - 1$ graus de llibertat, pel mateix motiu: les diferències entre els nivells del factor B es poden expressar amb $G_B - 1$ contrastos independents.
+
+-   **Interacció A $\times$ B**\
+    La interacció combina els dos factors i té $(G_A - 1)(G_B - 1)$ graus de llibertat.\
+    Això reflecteix el nombre de possibles patrons d’interacció independents que poden aparèixer entre els nivells d’A i de B.
+
+-   **Error (residual)**\
+    Dins de cada combinació $A_i \times B_j$ hi ha $n$ repeticions, de les quals $n - 1$ poden variar lliurement després de fixar la seva mitjana de cel·la. Com que hi ha $G_A G_B$ cel·les, el total de graus de llibertat d’error és $G_A G_B (n - 1)$.
+
+-   **Total**\
+    En total hi ha $G_A G_B n$ observacions, i un cop restada la mitjana global, queden $G_A G_B n - 1$ graus de llibertat.
+
+Aquesta estructura garanteix que la suma total de graus de llibertat és igual a la suma de tots els components parcials:
+
+$$(G_A G_B n - 1) = (G_A - 1) + (G_B - 1) + (G_A - 1)(G_B - 1) + G_A G_B (n - 1)$$
+
+------------------------------------------------------------------------
+
+### Mitjanes quadràtiques i estadístic $F$
+
+Un cop calculades les **sumes de quadrats**, podem obtenir les **mitjanes quadràtiques (MS)** dividint cada suma de quadrats pels seus graus de llibertat:
+
+$$
+\operatorname{MS}_{\textrm{A}} = \frac{\operatorname{SS}_{\textrm{A}}}{G_A - 1}, \quad
+\operatorname{MS}_{\textrm{B}} = \frac{\operatorname{SS}_{\textrm{B}}}{G_B - 1}, \quad
+\operatorname{MS}_{\textrm{A} \times \textrm{B}} = \frac{\operatorname{SS}_{\textrm{A} \times \textrm{B}}}{(G_A - 1)(G_B - 1)}, \quad
+\operatorname{MS}_{\textrm{res}} = \frac{\operatorname{SS}_{\textrm{res}}}{G_A G_B (n - 1)}
+$$
+
+A partir d’aquestes mitjanes quadràtiques, es defineixen **tres proves estadístiques independents**, cadascuna amb el seu propi valor $F$:
+
+1.  **Efecte del factor A** $$ F_{\textrm{A}} = \frac{\operatorname{MS}_{\textrm{A}}}{\operatorname{MS}_{\textrm{res}}} $$ Compara la variabilitat entre nivells del factor A amb la variabilitat residual dins de cada cel·la.\
+    Si $F_A$ és gran i el valor $p$ associat és petit ($p < 0.05$), podem concloure que el factor A té un efecte significatiu sobre la variable resposta.
+
+2.  **Efecte del factor B** $$F_{\textrm{B}} = \frac{\operatorname{MS}_{\textrm{B}}}{\operatorname{MS}_{\textrm{res}}}$$ Avalua si les diferències entre nivells del factor B són significatives un cop controlada la variabilitat residual.
+
+3.  **Interacció A** $\times$ B $$ F_{\textrm{A}\times \textrm{B}} = \frac{\operatorname{MS}_{\textrm{A} \times \textrm{B}}}{\operatorname{MS}_{\textrm{res}}} $$ Aquesta és la prova clau per saber si **l’efecte d’un factor depèn de l’altre**.\
+    Un valor alt de $F_{\textrm{A}\times \textrm{B}}$ indica que la relació entre A i la resposta no és la mateixa per a tots els nivells de B (i viceversa).
+
+En resum: Tenim **tres estadístics** $F$ → tres hipòtesis nul·les:\
+- $H_{0,A}$: A no té efecte,\
+- $H_{0,B}$: B no té efecte,\
+- $H_{0,AB}$: no hi ha interacció entre A i B. 
+
+Si alguna d’aquestes proves resulta significativa, podem afirmar que el factor corresponent (o la seva interacció) explica una part substancial de la variabilitat observada.
+
+Un valor alt de $F$ indica que la variabilitat entre nivells del factor és molt més gran que la variabilitat residual, mentre que un valor baix suggereix que les diferències observades poden deure’s simplement al soroll experimental.
+
+------------------------------------------------------------------------
+
+## Exemple pràctic amb R
+
+Apliquem una ANOVA de dos factors amb interacció al nostre conjunt de dades:
+
+```{r}
+# Ajust del model amb interacció
+anova2 <- aov(titol ~ medi * agitacio, data = df_tots)
+summary(anova2)
+```
+
+`medi * agitacio` inclou **ambdós efectes principals** i la seva **interacció**. La sortida mostra:\
+- `medi` → efecte del factor A,\
+- `agitacio` → efecte del factor B,\
+- `medi:agitacio` → interacció A×B.
+
+Només el medi de cultiu té un efecte significatiu sobre el títol final ($p < 0{,}001$), mentre que l’agitació i la interacció entre medi i agitació no mostren efectes detectables. Això suggereix que:\
+- El tipus de medi és un factor determinant en la producció del cultiu.\
+- Variar la velocitat d’agitació dins del rang estudiat no canvia significativament el títol.\
+- L’efecte del medi és consistent per a totes les agitacions (no hi ha interacció).
+
+------------------------------------------------------------------------
+
+### Visualització de la interacció
+
+La interpretació d’efectes principals amb interacció significativa pot ser enganyosa. Visualitzem-la:
+
+```{r}
+interaction.plot(x.factor = df_tots$agitacio,
+                 trace.factor = df_tots$medi,
+                 response = df_tots$titol,
+                 col = 1:nlevels(df_tots$medi),
+                 lwd = 2, pch = 19,
+                 xlab = "Agitació (rpm)", ylab = "Títol (g/L)",
+                 main = "Interacció entre medi i agitació")
+```
+
+-   **Línies paral·leles** → no hi ha interacció (els efectes són additius).\
+-   **Línies que es creuen/divergeixen** → hi ha interacció.
+
+------------------------------------------------------------------------
+
+### Comparacions post-hoc i mida de l’efecte
+
+Quan algun dels factors resulta significatiu a l’ANOVA (com en el nostre cas, el medi de cultiu), sabem que **no tots els nivells del factor tenen el mateix efecte** sobre la variable dependent.\
+Tanmateix, l’ANOVA només ens diu que existeixen diferències, però no ens indica entre quins nivells.
+
+Per determinar quines parelles de nivells són diferents, cal fer comparacions post-hoc. Una de les proves més habituals és la prova de Tukey HSD:
+
+```{r, eval=FALSE}
+# Comparacions post-hoc de Tukey
+TukeyHSD(anova2)
+```
+
+Per al disseny amb interaccions, la prova de Tukey HSD reporta totes les comparacions possibles entre nivells de cada factor i, si s’escau, també entre combinacions de nivells dels factors implicats en la interacció. En concret:\
+- Mostra les diferències entre tots els nivells del factor A (p. ex. entre parelles de medis).\
+- Mostra les diferències entre tots els nivells del factor B (p. ex. entre les diferents agitacions).\
+- També mostra les comparacions entre totes les combinacions possibles $(A_i,B_j)$, és a dir, entre cel·les del disseny factorial.
+
+En el nostre exemple, com que el factor significatiu és medi, les comparacions de Tukey ens permetran identificar quin medi de cultiu produeix un títol significativament més alt o més baix que els altres. Si hi hagués hagut una interacció significativa, hauríem examinat les comparacions dins de cada nivell d’agitació per veure en quines combinacions concretes apareixen les diferències.
+
+A més de la significació estadística, és important valorar la magnitud de l’efecte, és a dir, quant de la variabilitat total de les dades pot atribuir-se al factor estudiat.\
+Per això utilitzem l'eta quadrat parcial ($\eta_p^2$), que indica la proporció de variància explicada per cada factor un cop controlats els altres:
+
+```{r}
+# Mida de l'efecte (eta quadrat parcial)
+# install.packages("effectsize")
+library(effectsize)
+eta_squared(anova2, partial = TRUE)
+```
+
+Recordem que els valors típics d’interpretació de $\eta_p^2$ són:\
+- 0.01 → efecte petit,\
+- 0.06 → efecte mitjà,\
+- 0.14 → efecte gran.
+
+En el nostre cas, trobem un valor d’$\eta_p^2 = 0{,}04$ per al factor `medi`, consistent amb un efecte petit/mitjà del medi de cultiu sobre el títol, i valors més baixos per a `agitacio` i `medi:agitacio`, coherents amb la seva manca de significació.
+
+------------------------------------------------------------------------
+
+### Validació dels supòsits
+
+Com en el cas de l’ANOVA d’un factor, podem comprovar la normalitat dels residus:
+
+```{r}
+# Normalitat dels residus
+shapiro.test(residuals(anova2))
+```
+
+Si $p>0.05$ al test de Shapiro–Wilk, és raonable assumir que els residus segueixen una distribució normal.
+
+Per a l'homogeneïtat de les variàncies de totes les cel·les:
+
+```{r, eval=FALSE}
+# Homogeneïtat de variàncies (Levene)
+# install.packages("car")
+library(car)
+leveneTest(titol ~ medi * agitacio, data = df_tots)
+```
+
+Si $p>0.05$ al test de Levene, podem assumir que les variàncies són homogènies entre combinacions de factors.
+
+Finalment, el supòsit d’independència s’assumeix pel disseny experimental, ja que les observacions provenen de grups o mostres independents.

@@ -1,0 +1,52 @@
+% Idioma en català
+\usepackage[catalan]{babel}
+
+% Tipus de lletra
+\usepackage{libertinus}    % serif elegant
+\usepackage[scaled]{beramono} % monospace pel codi
+\usepackage{inconsolata}   % monospace alternatiu
+\usepackage{gensymb}
+
+% Marges generosos
+\usepackage[a4paper,margin=3cm]{geometry}
+
+% Capítols i seccions amb estil modern
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+  {\bfseries\Huge}
+  {\filleft\Large\thechapter}
+  {1ex}
+  {\titlerule\vspace{1ex}\filright}
+\titlespacing*{\chapter}{0pt}{0pt}{2ex}
+
+% Colors suaus per a caixes
+\usepackage{xcolor}
+\definecolor{notestarchgray}{HTML}{333333}
+\definecolor{notestarchblue}{HTML}{005F9E}
+
+% Caixes per remarcar notes i exemples
+\usepackage{tcolorbox}
+\tcbset{
+  colback=notestarchblue!5,
+  colframe=notestarchblue!80,
+  boxrule=0.5pt,
+  arc=2mm,
+  left=6pt,right=6pt,top=6pt,bottom=6pt
+}
+
+% Entorns personalitzats
+\newtcolorbox{examplebox}{title=Exemple, colback=notestarchblue!5,colframe=notestarchblue!80}
+\newtcolorbox{notebox}{title=Nota, colback=gray!10,colframe=notestarchgray!80}
+
+% Millorar listings de codi
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{gray!5},
+  frame=single,
+  framerule=0.3pt,
+  rulecolor=\color{gray!50},
+  keywordstyle=\color{notestarchblue}\bfseries,
+  commentstyle=\itshape\color{gray!70},
+  showstringspaces=false
+}

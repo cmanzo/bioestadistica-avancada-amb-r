@@ -1,0 +1,546 @@
+---
+title: "Anàlisis de la variància"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+
+En aquest capítol introduirem les proves estadístiques basades en l’anàlisi de la variància (en anglès *ANalysis Of VAriance*, ANOVA).
+
+## Un cas real
+
+Considerem una classe d’estudiants de biotecnologia que està fent unes pràctiques de l’assignatura de bioreactors. Els estudiants estan repartits en 7 grups, i cada grup fa servir un bioreactor diferent. Volen estudiar quines condicions optimitzen un cultiu de cèl·lules CHO, variant entre 3 medis de cultiu i 4 nivells d’agitació. Fan 5 pràctiques en 5 dies diferents.
+
+```{r, echo=FALSE, results="hide"}
+set.seed(123)
+
+# Paràmetres
+n_groups <- 7
+n_medi <- 3
+agit_levels <- c(100, 200, 300, 400)   # rpm
+days <- as.Date("2025-05-01") + c(0, 3, 4, 7, 10)    # 5 dies consecutius
+
+# Mitjanes del títol per medi (g/L)
+medi_means <- c(9.3, 10.2, 10.5)  
+
+# Desviació estàndard (mateixa per tots els casos = homocedasticitat)
+sigma <- 3  
+
+# Carpeta
+if(!dir.exists("datasets")) dir.create("datasets")
+
+for(g in 1:n_groups){
+  # Combinació de condicions
+  df <- expand.grid(
+    medi = factor(paste0("M", 1:n_medi)),
+    agitacio = agit_levels,
+    data = days
+  )
+  
+  # Afegim grup i bioreactor
+  df$grup <- paste0("G", g)
+  df$bioreactor <- paste0("BR", g)
+  
+  # Simulem titol: només depèn del medi + soroll
+  df$titol <- round(unlist(lapply(df$medi, function(m){
+    rnorm(1, mean = medi_means[as.numeric(sub("M","", m))], sd = sigma)
+  })), 2)
+  
+  # Guardem CSV
+  fname <- paste0("datasets/bioreact/bioreact_grup", g, ".csv")
+  write.csv(df[,c("grup","bioreactor","medi","agitacio","data","titol")],
+            fname, row.names = FALSE)
+}
+
+```
+
+Cada grup apunta el títol final (en g/L) i recopila els resultats en un fitxer `.csv` que té com a columnes:\
+- grup\
+- bioreactor\
+- medi\
+- agitacio (en rpm)\
+- data\
+- titol
+
+Comencem a mirar un dels fitxers, el del grup 1:
+
+```{r}
+# Carreguem el fitxer
+df_g1 <- read.csv("datasets/bioreact/bioreact_grup1.csv")
+
+# Comprovem el dataframe
+str(df_g1)
+```
+
+Podem veure que hi ha les variables que hem comentat. Algunes, com el títol i el nivell d’agitació, tenen valors numèrics (`int` o `num`) que poden variar de manera contínua dins d’un rang. Aquestes variables s’anomenen **contínues** o **quantitatives**. Altres, com el medi de cultiu o el bioreactor, tenen format `chr` i prenen un nombre limitat de categories o etiquetes. Aquestes s’anomenen **categòriques** o **qualitatives**.
+
+Aquesta distinció és clau perquè el tipus de variable determina el tipus d’anàlisi estadística que podem fer. Per exemple, només té sentit calcular mitjanes o variàncies per a variables contínues, mentre que per a variables categòriques volem **comparar grups o nivells**.
+
+Aquest fitxer ja és un bon exemple de com són les dades reals: sempre hi ha més columnes de les que necessitem per respondre una pregunta concreta. En aquest capítol, i en els tres següents (proves post-hoc, mida de l’efecte i supòsits), ens centrarem únicament en `medi` i `titol`. Les columnes `bioreactor` i `agitacio` no desapareixen: `agitacio` la recuperarem al capítol sobre l’ANOVA de dos factors, i `bioreactor` al capítol sobre l’ANOVA de mesures repetides.
+
+En R, algunes funcions estadístiques interpreten automàticament les variables de tipus `chr` com a **categòriques** (*factors*). Tot i així, és més segur i explícit convertir manualment les variables categòriques en factors, sobretot si volem controlar l’ordre dels nivells:
+
+```{r}
+# Conversió a variable categòrica
+df_g1$medi <- factor(df_g1$medi)
+
+# Comprovem la conversió
+str(df_g1$medi)
+
+# Mostrar l'ordre dels nivells
+levels(df_g1$medi)
+```
+
+Per poder treballar amb totes les dades, primer les ajuntem en un únic dataframe:
+
+```{r}
+# Llista de fitxers dels 7 grups
+fitxers <- list.files("datasets/bioreact",
+                       pattern = "bioreact_grup.*\\.csv", full.names = TRUE)
+
+# Llegim tots els fitxers en una llista de dataframes
+llista_dfs <- lapply(fitxers, read.csv)
+
+# Combina tots els dataframes en un de sol
+df_tots <- do.call(rbind, llista_dfs)
+
+# Converteix automàticament totes les columnes <chr> a factor
+df_tots[sapply(df_tots, is.character)] <-
+  lapply(df_tots[sapply(df_tots, is.character)], factor)
+
+# Comprovem el resultat
+str(df_tots)
+```
+
+i després les podem guardar en un arxiu `.csv`:
+
+```{r}
+write.csv(df_tots, "datasets/bioreact/bioreact_tots.csv", row.names = FALSE)
+```
+
+D’aquestes sis columnes, per als propers capítols (fins arribar a les mesures repetides al capítol 8) només ens caldran `grup`, `medi` i `titol`. Ho fem explícit seleccionant-les:
+
+```{r}
+df_tots <- df_tots[, c("grup", "medi", "titol")]
+str(df_tots)
+```
+
+Les dades són molt riques i ens permeten abordar una sèrie d’hipòtesis. Comencem amb un problema senzill: **hi ha diferències significatives entre els medis de cultiu? Hi ha almenys un que sigui millor o pitjor que els altres?**
+
+Com ja sabeu, per contestar aquestes preguntes de manera estadísticament correcta hem de fer una **prova estadística**.
+
+------------------------------------------------------------------------
+
+## Prova d’hipòtesis
+
+Podem reformular la nostra pregunta com: *hi ha almenys un medi que produeix un títol més alt que els altres?* Aquesta pregunta té dues possibles respostes:\
+- Tots els medis produeixen un títol equivalent.\
+- Almenys un medi produeix un títol diferent dels altres.
+
+Típicament, com en l’exemple, cada grup de dades té un conjunt de valors i representa una **mostra** d’una població amb una distribució subjacent. De moment assumirem que aquesta distribució és normal (més endavant veurem com comprovar-ho).
+
+Volem contestar aquesta pregunta respecte a un **paràmetre de la població**, en aquest cas la mitjana. Per tant, podem reformular els enunciats com:\
+- Les mitjanes de les poblacions són iguals.\
+- Almenys una de les poblacions té una mitjana diferent.
+
+En molts problemes d’estadística ens trobem davant la necessitat de **prendre una decisió entre dos enunciats competitius i mútuament excloents** sobre un paràmetre d’una o més poblacions.
+
+Aquest procés rep el nom de **prova d’hipòtesis** i constitueix una part fonamental de l’estadística inferencial. L’objectiu és avaluar, a partir de les dades d’una **mostra**, si disposem d’evidència suficient per **rebutjar una hipòtesi inicial sobre la població**.
+
+En altres paraules, les dades mostrals serveixen com a base per validar o qüestionar una afirmació prèvia sobre la població, i la decisió final es pren seguint criteris probabilístics ben definits.
+
+Parlarem de:\
+1. **Hipòtesi nul·la** ($H_0$): situació “per defecte” (p. ex., el medi **no** té efecte).\
+2. **Hipòtesi alternativa** ($H_1$): situació que volem posar a prova (p. ex., el medi **sí** que té efecte).
+
+Per prendre la decisió definim un **estadístic de prova**, un valor calculat a partir de les dades que té una **distribució coneguda sota** $H_0$. Aleshores, decidim rebutjar o no $H_0$ comparant l’estadístic amb una **regió crítica** (valors “extrems”), associada a un **nivell de significació** $\alpha$.
+
+EL nivell de significació $\alpha$ és la probabilitat de **rebutjar** $H_0$ quan $H_0$ és certa o **error de tipus I**. Per exemple, $\alpha = 0{,}05$ indica que acceptem un 5% de risc de falsos positius (afirmar que el medi té efecte quan en realitat no en té).
+
+A la pràctica, en lloc de mirar només si l’estadístic cau dins la regió crítica, es calcula la probabilitat associada al valor obtingut. Aquesta probabilitat rep el nom de **valor** $p$ ($p$-value). Si el valor $p$ és inferior al nivell de significació $\alpha$, rebutgem $H_0$.
+
+------------------------------------------------------------------------
+
+:::: {.content-visible when-format="html"}
+::: {.callout-note}
+## Una explicació més intuïtiva
+
+Podem pensar en la prova d’hipòtesis com un **judici**:
+
+- L’**hipòtesi nul·la** ($H_0$) és la “presumpció d’innocència”.
+- L’**hipòtesi alternativa** ($H_1$) és l’acusació.
+- El **nivell de significació** $\alpha$ és el risc que volem assumir de condemnar un innocent.
+- Les **dades mostrals** són les proves que presentem al tribunal.
+- L’**estadístic de prova** és com un índex que resumeix la força d’aquestes proves.
+- El **valor** $p$ ens diu quant rar és veure aquestes proves si l’acusat fos innocent.
+
+En aquest judici estadístic mai podem demostrar que $H_0$ és veritat; només podem decidir si tenim prou evidència per rebutjar-la en favor de $H_1$, acceptant un petit risc d’equivocar-nos ($\alpha$).
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{notebox}
+```
+**Una explicació més intuïtiva**
+
+Podem pensar en la prova d’hipòtesis com un **judici**:
+
+- L’**hipòtesi nul·la** ($H_0$) és la “presumpció d’innocència”.
+- L’**hipòtesi alternativa** ($H_1$) és l’acusació.
+- El **nivell de significació** $\alpha$ és el risc que volem assumir de condemnar un innocent.
+- Les **dades mostrals** són les proves que presentem al tribunal.
+- L’**estadístic de prova** és com un índex que resumeix la força d’aquestes proves.
+- El **valor** $p$ ens diu quant rar és veure aquestes proves si l’acusat fos innocent.
+
+En aquest judici estadístic mai podem demostrar que $H_0$ és veritat; només podem decidir si tenim prou evidència per rebutjar-la en favor de $H_1$, acceptant un petit risc d’equivocar-nos ($\alpha$).
+
+```{=latex}
+\end{notebox}
+```
+:::
+
+------------------------------------------------------------------------
+
+## Quina prova hem de fer?
+
+Des de l’estadística bàsica, ja sabem que si volem veure si hi ha una diferència significativa entre les mesures corresponents a **2 nivells** d’una variable categòrica, podem fer servir la **prova *t* de Student**. Però en aquest cas tenim **3 nivells**. Què podem fer?
+
+Una idea podria ser comparar els nivells **dos a dos** fent proves *t*:
+
+```{r, eval=FALSE}
+# Comparacions per parelles sense correcció (no recomanat globalment)
+pairwise.t.test(df_tots$titol, df_tots$medi, p.adjust.method = "none")
+```
+
+Això és correcte? **En realitat, no.**
+
+Si el nombre de nivells de la variable categòrica és $G$, d’aquesta manera estem fent
+
+$$ \binom{G}{2} \;=\; \frac{G!}{2!(G-2)!} \;=\; \frac{G(G-1)}{2} $$
+
+proves independents, cadascuna amb nivell de significació $\alpha$.
+
+Si considerem que, en cada prova, la probabilitat de **no rebutjar** $H_0$ quan $H_0$ és certa és $1-\alpha$, i això passa $\binom{G}{2}$ vegades, la probabilitat de **no rebutjar cap** $H_0$ quan totes són certes és
+
+$$ (1-\alpha)(1-\alpha)\dots(1-\alpha) \;=\; (1-\alpha)^{\binom{G}{2}}. $$
+
+Per tant, el **nivell de significació global** (*Family-Wise Error Rate*, $\alpha_{\mathrm{FW}}$) és
+
+$$ \alpha_{\mathrm{FW}} \;=\; 1 - (1-\alpha)^{\binom{G}{2}}. $$
+
+Si, com en el cas de l'estudi del títol respecte al medi, hem de fer la prova *t* 3 vegades amb $\alpha = 0{,}05$:
+
+$$ 
+\alpha_{\mathrm{FW}} \;=\; 1 - (1 - 0{,}05)^3 \;\approx\; 0{,}143, 
+$$
+
+és a dir, un **14,3%** de probabilitat de cometre **almenys un fals positiu**.
+
+Amb **5 nivells** ($\binom{5}{2} = 10$ comparacions):
+
+$$ 
+\alpha_{\mathrm{FW}} = 1 - (1 - 0{,}05)^{10} \;\approx\; 0{,}401,
+$$
+
+és a dir, **gairebé un 40%**.
+
+------------------------------------------------------------------------
+
+## La solució: la prova ANOVA
+
+La prova **ANOVA** resol aquest problema permetent fer **una única prova global** amb les hipòtesis correctes i controlant el nivell de significació de manera adequada.
+
+Per entendre-ho millor, representem les nostres dades en una taula. Cada observació la denotem com $x_{j,k}$, on:\
+- $j = 1,\dots,G$ indica els nivells de la variable categòrica (en aquest cas, el medi);\
+- $k = 1,\dots,n_j$ representa els valors individuals dins del grup $j$.
+
+$$
+\begin{array}{c|c|c|c}
+\text{Grup } j=1 & \text{Grup } j=2 & \phantom{\text{xxx}} \dots  \phantom{\text{xxx}} & \text{Grup } j=G \\
+\hline
+x_{1,1} & x_{2,1} & \dots & x_{G,1} \\
+x_{1,2} & x_{2,2} & \dots & x_{G,2} \\
+x_{1,3} & x_{2,3} & \dots & x_{G,3} \\
+\vdots  & \vdots  & \cdots & \vdots  \\
+x_{1,n_1} & x_{2,n_2} & \dots & x_{G,n_G} \\
+\end{array}
+$$
+
+------------------------------------------------------------------------
+
+### La suma de quadrats
+
+Per simplificar la idea d’ANOVA, recordem primer la fórmula de la **variància mostral**:
+
+$$ s^2 = \frac{1}{n-1}\sum_{k=1}^n (x_k - \bar{x})^2 = \frac{SS}{n-1} $$
+
+on
+
+$$ \operatorname{SS} = \sum_{k=1}^n (x_k - \bar{x})^2 $$
+
+és la **suma de quadrats** (*Sum of Squares*, $\operatorname{SS}$), és a dir, la suma de les distàncies al quadrat entre cada element de la mostra i la seva mitjana. De manera similar a la variància, és una mesura de la **dispersió de les dades** respecte a la mitjana.
+
+El denominador $n-1$ indica els **graus de llibertat** que corresponen a les $n$ dades disponibles menys els **vincles**. Un vincle correspon a un paràmetre estimat amb les mateixes dades (en aquest cas, la mitjana $\bar{x}$).
+
+------------------------------------------------------------------------
+
+### Les sumes de quadrats a ANOVA
+
+La prova ANOVA separa la variabilitat total en dues parts:
+
+1.  **Suma de quadrats dins dels grups** (*within* o *residual*):
+
+$$ \operatorname{SS}_{\textrm{w}} = \sum_{j=1}^G \sum_{k=1}^{n_j} (x_{j,k} - \bar{x}_j)^2 = \operatorname{SS}_1 + \operatorname{SS}_2 + \dots + \operatorname{SS}_G $$
+
+Aquesta quantitat mesura la **dispersió interna de cada grup** i després suma totes les contribucions.
+
+2.  **Suma de quadrats entre grups** (*between*):
+
+$$ \operatorname{SS}_{\textrm{b}} =  \sum_{j=1}^G \sum_{k=1}^{n_j} (\bar{x}_{j} - \bar{x})^2 $$
+En el cas especial en què tots els grups tenen el mateix nombre d’elements $n=n_j$, l’expressió es pot simplificar a:
+
+$$ \operatorname{SS}_{\textrm{b}} =  n \sum_{j=1}^{G} (\bar{x}_{j} - \bar{x})^2 $$
+
+Aquesta quantitat mesura la **variabilitat entre les mitjanes dels grups** respecte a la mitjana global.
+
+------------------------------------------------------------------------
+
+### L’estadístic de la prova ANOVA
+
+A partir de les sumes de quadrats, la prova ANOVA calcula dues variàncies, o **mitjanes de quadrats** (*Mean Squares*, $\operatorname{MS}$). Com en el cas de la variància mostral, aquestes s’obtenen dividint cada suma de quadrats pel nombre de **graus de llibertat** corresponents.
+
+Per a la suma de quadrats *within*, el nombre de graus de llibertat correspon a les observacions totals $N = n_1 + n_2 + \dots + n_G$ menys el nombre de vincles. En el càlcul de $\operatorname{SS}_{\textrm{w}}$ intervenen les mitjanes dels grups $\bar{x}_1, \bar{x}_2, \dots, \bar{x}_G$, que en total són $G$. Per tant, els graus de llibertat són $N - G$. Així, la mitjana de quadrats *within* és:
+
+$$ \operatorname{MS}_{\textrm{w}} = \frac{\operatorname{SS}_{\textrm{w}}}{N-G} $$
+
+De manera anàloga, per a la suma de quadrats *between*, el càlcul de $\operatorname{SS}_{\textrm{b}}$ només fa servir les $G$ mitjanes dels grups $\bar{x}_1, \bar{x}_2, \dots, \bar{x}_G$. En aquest cas hi ha un únic vincle, la mitjana global $\bar{x}$. Per tant, els graus de llibertat són $G-1$, i la mitjana de quadrats *between* és:
+
+$$ \operatorname{MS}_{\textrm{b}} = \frac{\operatorname{SS}_{\textrm{b}}}{G-1} $$
+
+La prova ANOVA vol establir si les mitjanes dels grups són **suficientment diferents** en comparació amb la variabilitat intrínseca dins de cada grup. En altres paraules, simplificant una mica:\
+- si la distància entre les mitjanes dels grups és gran respecte a la variabilitat interna, hi ha evidència per pensar que almenys un grup és diferent;\
+- si la variabilitat dins dels grups és més gran que les diferències entre les seves mitjanes, no tindrem prou evidència per rebutjar la hipòtesi nul·la.
+
+L’estadístic de la prova ANOVA es defineix, doncs, com:
+
+$$ F = \frac{\operatorname{MS}_{\textrm{b}}}{\operatorname{MS}_{\textrm{w}}} =
+\frac{\frac{\operatorname{SS}_{\textrm{b}}}{G-1}}{\frac{\operatorname{SS}_{\textrm{w}}}{N-G}} $$
+
+A partir d’aquesta fórmula, és fàcil de veure que:\
+- Quan $\operatorname{MS}_{\textrm{b}} \gg \operatorname{MS}_{\textrm{w}}$, $F$ serà gran i probablement rebutjarem la hipòtesi nul·la.\
+- Quan $\operatorname{MS}_{\textrm{w}} \gg \operatorname{MS}_{\textrm{b}}$, $F$ serà petit i no podrem rebutjar $H_0$.
+
+Aquestes dues situacions es poden representar gràficament a la figura següent. En els panells de l’esquerra, les mitjanes dels tres grups estan clarament separades de la mitjana global (barres horitzontals negres). En canvi, als gràfics de la dreta, les mitjanes són molt semblants. A més, la variabilitat dins dels grups és pràcticament idèntica en tots dos casos; per tant, el que realment canvia és $\operatorname{MS}_{\textrm{b}}$, i això és el que provoca la diferència en el valor de l’estadístic $F$.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+set.seed(123, kind = "Mersenne-Twister", normal.kind = "Inversion")
+
+# Funció per dibuixar un histograma amb línies i segments
+plot_group <- function(data, col_light, col_dark, global_mean, main=""){
+  h <- hist(data, breaks=30, col=col_light, border="grey70",
+            main=main, xlab="", ylab="Freq.", xlim=c(0,16))
+  
+  m <- mean(data)
+  
+  # Mitjana del grup (mateix color però més fosc)
+  abline(v=m, col=col_dark, lwd=2)
+  
+  # Segment horitzontal per representar SS (1 desviació estàndard)
+  arrows(m-sd(data), max(h$counts)/2,
+         m+sd(data), max(h$counts)/2,
+         code=3, angle=90, length=0.08, lwd=2, col=col_dark)
+  
+  # Mitjana global (negra discontínua)
+  abline(v=global_mean, col="black", lwd=2, lty=2)
+  
+  # Distància de la mitjana del grup a la mitjana global
+  arrows(m, max(h$counts)*0.8,
+         global_mean, max(h$counts)*0.8,
+         code=3, angle=90, length=0.08, lwd=2, col="black")
+}
+
+# Dades
+n <- 150
+
+# Cas 2: no rebutgem H0
+g1b <- rnorm(n, 7.8, 2); g2b <- rnorm(n, 8, 2); g3b <- rnorm(n, 8.1, 2)
+global_b <- mean(c(g1b,g2b,g3b))
+
+# Cas 1: rebutgem H0
+g1a <- g1b-1.5; g2a <- g2b+.5; g3a <- g3b+1
+global_a <- mean(c(g1a,g2a,g3a))
+
+# Build dataframes
+df_anova_reb <- data.frame(
+  observacions = c(g1a, g2a, g3a),
+  grups = factor(rep(c("Grup1", "Grup2", "Grup3"), each = 150))
+)
+
+df_anova_noreb <- data.frame(
+  observacions = c(g1b, g2b, g3b),
+  grups = factor(rep(c("Grup1", "Grup2", "Grup3"), each = 150))
+)
+
+# Colors
+cols_light <- c(rgb(135,206,235, max=255, alpha=120),   # blau clar
+                rgb(250,128,114, max=255, alpha=120),   # salmó clar
+                rgb(152,251,152, max=255, alpha=120))   # verd clar
+
+cols_dark <- c("blue3", "red3", "darkgreen")
+
+# Layout: 3 files × 2 columnes
+par(mfrow=c(3,2), mar=c(3,3,2,1), oma=c(0,0,2,0))
+
+# Esquerra = rebutgem H0
+plot_group(g1a, cols_light[1], cols_dark[1], global_a, main="Grup 1")
+plot_group(g1b, cols_light[1], cols_dark[1], global_b, main="Grup 1")
+
+plot_group(g2a, cols_light[2], cols_dark[2], global_a, main="Grup 2")
+plot_group(g2b, cols_light[2], cols_dark[2], global_b, main="Grup 2")
+
+plot_group(g3a, cols_light[3], cols_dark[3], global_a, main="Grup 3")
+plot_group(g3b, cols_light[3], cols_dark[3], global_b, main="Grup 3")
+
+mtext("  Rebutgem H0                           No Rebutgem H0",
+      side=3, outer=TRUE, line=0, cex=1.2, font=2)
+```
+
+<!-- afegir exemple on només cambia MSw -->
+
+Finalment, sota els supòsits de l’ANOVA (que revisarem més endavant), es pot demostrar que l’estadístic $F$ segueix una **distribució de Fisher-Snedecor** amb $(G-1,\, N-G)$ graus de llibertat. Això ens permet calcular tant el valor de $F$ com el valor $p$ associat, i així prendre una decisió objectiva sobre si rebutjar o no $H_0$.
+
+------------------------------------------------------------------------
+
+### Prova ANOVA amb R
+
+Considerant que les dades de la figura anterior estan guardades en dos dataframes `df_anova_reb` i `df_anova_noreb`, podem mirar-ne l'estructura, per exemple:
+
+```{r}
+str(df_anova_reb)
+```
+
+Podem fer servir la funció `aov()` per calcular l’ANOVA en els dos casos:
+
+```{r}
+# Run ANOVA
+anova_reb <- aov(observacions ~ grups, data = df_anova_reb)
+anova_noreb <- aov(observacions ~ grups, data = df_anova_noreb)
+
+# Print summary
+summary(anova_reb)
+summary(anova_noreb)
+```
+
+El `summary()` ens proporciona la taula completa de resultats de l’ANOVA.
+
+Veiem que a la fila `Residuals`, columna `Mean Sq` hi apareix el $\operatorname{MS}_{\textrm{w}}$, que pràcticament no canvia entre els dos casos. En canvi, la fila `grups`, columna `Mean Sq` correspon a $\operatorname{MS}_{\textrm{b}}$, i és aquesta la que provoca la diferència en l’estadístic `F-value`. El $p$-value associat (`Pr(>F)`) ens diu que en el primer cas podem rebutjar la hipòtesi nul·la ($p < 0{,}05$), mentre que en el segon no.
+
+A vegades pot ser útil visualitzar els valors de les quantitats de la taula ANOVA amb més decimals. Això és especialment rellevant pel valor $p$, que pot ser molt petit i que R sovint mostra com `<2e-16`. Amb el codi següent podem extreure els resultats i imprimir-los amb tota la precisió numèrica:
+
+```{r}
+# Calcular ANOVA
+s <- summary(anova_reb)
+
+# Extreure resultats de la taula ANOVA
+dofb  <- s[[1]][["Df"]][1]       # Graus de llibertat (degrees of freedom) G-1
+dofw  <- s[[1]][["Df"]][2]       # Graus de llibertat (degrees of freedom) N-G
+SSb  <- s[[1]][["Sum Sq"]][1]    # Suma de quadrats entre grups
+MSw  <- s[[1]][["Mean Sq"]][2]   # Mitjana de quadrats dins els grups (residuals)
+Fval <- s[[1]][["F value"]][1]   # Estadístic F
+pval <- s[[1]][["Pr(>F)"]][1]    # p-value
+
+# Mostrar resultats amb més decimals
+SSb
+MSw
+Fval
+pval
+```
+
+------------------------------------------------------------------------
+
+## Tornem al nostre problema
+
+Ara que hem vist com fer-ho, podem aplicar la prova ANOVA per contestar a la nostra pregunta inicial. Però, abans d’entrar en càlculs, és una bona pràctica visualitzar les dades: això ens permet detectar patrons, comparar grups de manera intuïtiva i, sovint, identificar possibles valors extrems o anomalies.
+
+Per exemple, podem fer un **diagrama de caixes** (boxplot) de la variable quantitativa `titol` en funció de la variable categòrica `medi`:
+
+```{r}
+boxplot(df_tots$titol ~ df_tots$medi,
+        col = "lightblue",
+        main = "Distribució del títol segons el medi de cultiu",
+        xlab = "Medi de cultiu",
+        ylab = "Títol (g/L)",
+        ylim = c(0,20)
+)
+```
+
+i també podem fer una taula amb l'estadística descriptiva respecte a aquesta variable:
+
+```{r}
+# Resum complet (min, 1er quartil, mediana, mitjana, 3r quartil, màxim)
+by(df_tots$titol, df_tots$medi, summary)
+```
+
+A aquest punt, ja podem fer la nostra prova:
+
+```{r}
+# Fem una ANOVA 
+anova_bioreact <- aov(df_tots$titol ~ df_tots$medi)
+
+# Mostrem el resum de l'ANOVA
+summary(anova_bioreact)
+```
+
+La prova ANOVA indica que, a un nivell de significació del 5% ($\alpha = 0{,}05$), hi ha diferències significatives entre els medis de cultiu ($F = 4{,}44$, $p = 0{,}016$). A la taula de resultats això queda remarcat amb el símbol `*`, que assenyala que el valor $p$ és inferior a $\alpha$. Això vol dir que, amb un nivell de significació de $\alpha = 0.05$, podem rebutjar la hipòtesi nul·la i concloure que almenys un dels medis produeix un títol diferent respecte als altres.
+
+També podem veure **gràficament** el resultat de la prova. La figura següent mostra la distribució $F$ de Fisher-Snedecor amb graus de llibertat $(2, 57)$, corresponent a la nostra ANOVA. La corba negra representa la densitat de probabilitat de l’estadístic $F$ sota la hipòtesi nul·la.
+
+La línia vermella discontínua indica el valor crític $F_{crit} \approx 3{,}16$ per a un nivell de significació $\alpha = 0{,}05$. La zona ombrejada en vermell a la dreta és la regió crítica, que correspon a una àrea sota la corba igual a $\alpha = 0{,}05$. Qualsevol valor $F > F_{crit}$ implica rebutjar $H_0$, ja que el valor $p$ corresponent (l’àrea sota la corba a la dreta d’aquest valor) és inferior a $\alpha$.
+
+La línia grisa discontínua marca el valor calculat $F = 4{,}44$ del nostre conjunt de dades. Com que aquest valor cau dins la regió crítica, rebutgem $H_0$ i concloem que hi ha diferències significatives entre almenys dos dels medis de cultiu.
+
+```{r, echo=FALSE}
+# Paràmetres
+alpha <- 0.05
+df1 <- 2
+df2 <- 57
+fcrit <- qf(1 - alpha, df1, df2)   # valor crític a la dreta
+
+s = summary(anova_bioreact)
+fcalc <- s[[1]]$`F value`
+
+# Seqüència per a la corba
+x <- seq(0, 6, length = 1000)
+y <- df(x, df1, df2)
+
+# Dibuix bàsic
+plot(x, y, type = "l", lwd = 2, xlab = "Estadístic (F)", ylab = "Densitat",
+     main = paste0("Distribució F (df1=", df1, ", df2=", df2, ")\n",
+                    "Regió crítica (alpha=", alpha, ")"),
+     ylim = c(0, 0.25))
+
+# Ombrejar la cua crítica
+xs_right <- x[x >= fcrit]; ys_right <- df(xs_right, df1, df2)
+polygon(c(xs_right, rev(xs_right)), 
+        c(rep(0, length(xs_right)), rev(ys_right)),
+        col = "tomato", border = NA)
+
+# Línia del valor crític
+abline(v = fcrit, lty = 2, lwd = 2, col = "tomato")
+
+# Línia del valor calculat
+abline(v = fcalc, lty = 2, lwd = 2, col = "grey30")
+
+# Anotacions
+text(fcalc-0.15, df(fcalc, df1, df2) + 0.01, labels = expression(F), pos = 3)
+
+text(3.5, 0.018, labels = expression(alpha), col = "white", cex = 1.1)
+```
+

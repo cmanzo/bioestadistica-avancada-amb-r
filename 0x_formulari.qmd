@@ -1,0 +1,77 @@
+---
+title: "Funcions d'R més habituals"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+
+```{r, eval=FALSE}
+### Crear vectors
+c(1, 2, 3)                     # Combina valors en un vector
+
+### Estadístics bàsics
+mean(x)                        # Mitjana del vector x
+var(x)                         # Variància mostral (denominador n-1)
+sd(x)                          # Desviació estàndard mostral
+
+### Generació de dades
+set.seed(123)                  # Fixa la llavor per garantir reproduïbilitat
+rnorm(N, mean = 0, sd = 1)     # N valors d'una distribució normal (μ, σ)
+runif(N, min = 0, max = 10)    # N valors d'una distribució uniforme
+sample(x, k, replace = FALSE)  # Mostreig de k elements d'x (sense repetició)
+
+### Visualització
+hist(rnorm(100), breaks = 20)  # Histograma amb 20 intervals
+curve(dnorm(x, 0, 1), -4, 4)   # Corba de la densitat normal estàndard
+
+### Data frames
+df <- data.frame(valors = x, categories = A) # Crea un dataframe
+head(df, n = 6)                              # Mostra les primeres 6 files
+str(df)                                      # Mostra l’estructura
+
+### Importació / exportació
+write.csv(df, "fitxer.csv", row.names = FALSE)   # Desa un fitxer CSV
+df <- read.csv("fitxer.csv")                     # Llegeix un CSV com a dataframe
+
+### Variables categòriques
+df$A <- factor(df$A)             # Converteix una variable a factor
+levels(df$A)                     # Mostra o modifica els nivells del factor
+
+### ANOVA
+aov(y ~ A, data = df)                     # ANOVA d’un factor
+aov(y ~ A * B, data = df)                 # ANOVA de dos factors amb interacció
+aov(y ~ A + Error(subjecte/A), data = df) # ANOVA de mesures repetides
+
+summary(aov(y ~ A, data = df))            # Mostra resultats de l’ANOVA
+
+### Proves post-hoc
+pairwise.t.test(x, g, p.adjust.method = "holm") # Comparacions t-test parell a parell
+TukeyHSD(aov_model)                             # Comparacions múltiples de Tukey
+
+### Mida de l’efecte
+library(effsize)
+cohen.d(y ~ A, data = df)              # Mida de l’efecte (Cohen's d)
+
+library(effectsize)
+eta_squared(aov_model, partial = FALSE)# Eta quadrat total (η²)
+eta_squared(aov_model, partial = TRUE) # Eta quadrat parcial (η²ₚ)
+
+### Verificació dels supòsits
+shapiro.test(x)                        # Test de normalitat
+
+library(car)
+leveneTest(y ~ A, data = df)           # Homogeneïtat de variàncies (un factor)
+leveneTest(y ~ A * B, data = df)       # Homogeneïtat de variàncies (dos factors)
+
+### Altres utilitats
+summary(object)                        # Resum estadístic d’un objecte
+table(df$A, df$B)                      # Taula de freqüències
+df_sub <- subset(df, condicio)         # Subset de dades segons una condició
+interaction.plot(df$B, df$A, df$y)     # Gràfic d’interacció entre dos factors
+```

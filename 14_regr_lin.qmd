@@ -1,0 +1,547 @@
+---
+title: "Regressió lineal"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+set.seed(123)
+
+n <- 80
+mRNA <- rnorm(n, 10, 2)
+microRNA <- rnorm(n, 6, 1.5)
+fase <- sample(c("G1","S","G2"), n, replace=TRUE)
+nutrients <- runif(n, 0.5, 1.5)
+
+# Efectes reals del model
+
+beta0 <- 5
+beta1 <- 3.2 # efecte mRNA
+beta2 <- -1.4 # efecte microRNA
+beta3 <- c(G1=0, S=2, G2=4) # efecte del cicle cel·lular
+beta4 <- 6 # efecte nutrients
+
+proteina <- beta0 +
+beta1*mRNA +
+beta2*microRNA +
+beta3[fase] +
+beta4*nutrients +
+rnorm(n, 0, 8)
+
+df_mult <- data.frame(mRNA = round(mRNA, 2), microRNA = round(microRNA, 2),
+                       nutrients = round(nutrients, 2),
+                       proteina = round(proteina, 2))
+
+dir.create("datasets/regressio", recursive = TRUE, showWarnings = FALSE)
+write.csv(df_mult, "datasets/regressio/multi_mRNA.csv", row.names = FALSE)
+
+
+# didn't include the 'fase' (categorical variable). It might be nice to add it
+# later on to explain how regression behaves with it, similarity with ANOVA,
+# and what happens if the variable is ordered.
+# The regression works even if the variable is categorical, bascally doing an ANOVA
+
+```
+
+En el capítol anterior hem estudiat com quantificar l’associació entre dues variables contínues mitjançant la correlació. La correlació ens indica si dues variables varien conjuntament i en quina direcció, però no ens diu com es relacionen, ni permet fer prediccions explícites.
+
+Per exemple, hem vist l’expressió d’un gen (mRNA) i la quantitat de proteïna estan correlacionades. Però…\
+- Quant augmenta la proteïna per cada unitat addicional de mRNA?\
+- Podem predir la quantitat de proteïna a partir del mRNA?\
+- Quin error cometrem en aquesta predicció?
+
+La resposta a aquestes preguntes requereix un altre instrument estadístic,
+la **regressió lineal**, que ens permet:\
+- quantificar la relació funcional entre dues variables,\
+- predir valors,\
+- avaluar la incertesa de la predicció,\
+- provar hipòtesis sobre la pendent i la intersecció del model.
+
+---
+
+## Regressió lineal simple
+
+La **regressió lineal simple** permet modelar la relació entre:\
+- una variable **predictora** $x$ (independent),\
+- una variable **resposta** $y$ (dependent)\
+mitjançant una equació de recta:
+
+$$ y = \beta_0 + \beta_1 x + \varepsilon $$
+
+on:\
+- $\beta_0$ és la **intersecció** (valor de $y$ quan $x=0$),\
+- $\beta_1$ és la **pendent** (canvi mitjà en $y$ per unitat de canvi en $x$),\
+- $\varepsilon$ és el terme d’**error** o variabilitat no explicada.
+
+La regressió, a diferència de la correlació, modela una relació funcional, i sota certs condicionants experimentals pot utilitzar-se també per estudiar relacions causals.
+
+---
+
+### Exemple biològic
+
+Tal com vam fer en el capítol anterior, volem estudiar la relació entre l’**expressió d’un gen (mRNA)** i la **quantitat de proteïna** produïda per aquest gen en un conjunt de mostres cel·lulars. Ja vam veure que aquestes dues variables estan correlacionades; ara volem determinar la **relació funcional** entre elles.
+
+Considerem el fitxer `mRNA.csv`, que conté el resultat de 30 experiments:
+
+```{r}
+df <- read.csv('datasets/correl/mRNA.csv')
+str(df)
+```
+
+Fem una representació gràfica:
+
+```{r}
+with(df, plot(mRNA, proteina, pch = 19, col = "steelblue",
+              xlab = "Expressió gènica (mRNA)",
+              ylab = "Quantitat de proteïna (a.u.)",
+              main = "Relació mRNA-proteïna"))
+```
+
+on veiem que la relació sembla aproximadament lineal, tot i presentar certa dispersió deguda a variabilitat biològica i tècnica.
+
+---
+
+### Càlcul dels coeficients de la regressió lineal
+
+El nostre objectiu és trobar la recta que millor representi les dades. Aquesta recta ha de minimitzar la suma de quadrats dels residus. Els residus són les diferències entre les respostes observades $y$ i les prediccions del model $\hat{y}$, doncs tindrem:
+
+$$ \operatorname{SS}_{\rm res} \;= \; \sum_{i=1}^{N} (y_i -\hat{y}_i)^2 \; = \; \sum_{i=1}^{N} (y_i -\beta_0 - \beta_1\,x_i)^2$$
+
+on cada terme mesura la distància al quadrat entre l’observació real $y_i$ i la predicció del model $\hat{y}_i$.
+Aquest criteri es coneix com el **mètode dels mínims quadrats**.
+
+L’objectiu és, doncs, trobar els valors de $\beta_0$ i $\beta_1$ que fan mínima aquesta expressió. Per fer-ho, derivem $\operatorname{SS}_{\rm res}$ respecte a $\beta_0$ i $\beta_1$, igualem les derivades a zero i resolvem el sistema d’equacions. El resultat (després d’unes quantes manipulacions algebraiques) són les fórmules tancades següents:
+
+$$
+\hat{\beta}_1 =
+\frac{\sum_{i=1}^n (x_i - \bar{x})(y_i - \bar{y})}
+     {\sum_{i=1}^n (x_i - \bar{x})^2},
+\qquad
+\hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{x}
+$$
+
+Aquestes expressions tenen una interpretació clara. El numerador de $\hat{\beta}_1$ mesura com varien conjuntament $x$ i $y$ (covariància) i el denominador quantifica la variabilitat de $x$. Per tant, la pendent és, essencialment, la covariància dividida per la variància de la variable explicativa.
+
+Un cop obtinguda la pendent, el terme independent $\hat{\beta}_0$ (intersecció) es calcula com el valor mitjà de $y$ menys l’efecte que aporta la pendent sobre el valor mitjà de $x$.
+
+---
+
+### Ajust del model de regressió simple en R
+
+En R, ajustem el model amb la funció `lm()` (*linear model*):
+
+```{r}
+model <- lm(proteina ~ mRNA, data = df)
+summary(model)
+```
+
+El resum del model proporciona molta informació. Abans d’analitzar-la, representem les dades conjuntament amb la recta de regressió:
+
+```{r}
+with(df, plot(mRNA, proteina, pch = 19, col = "steelblue"))
+abline(model, col = "firebrick", lwd = 2)
+```
+
+Entre els resultats del model, primer hi trobem una estadística descriptiva dels residus: mínim, màxim, mediana i quartils.
+
+A continuació, s’inclouen les estimacions dels coeficients del model, que corresponen a:\
+- $\hat{\beta}_0$: la intersecció (*intercept*)\
+- $\hat{\beta}_1$: la pendent\
+i, per a cadascun, el seu error estàndard, l’estadístic $t$ i el $p$-valor associat al test d’hipòtesis.
+Per cada coeficient $\beta_i$, es contrasta:
+$$ H_0: \beta_i = 0$$
+mitjançant un estadístic $t$ que és anàleg al que s’utilitza en el test de correlació.
+
+Podem veure els coeficients del model directament amb:
+
+```{r}
+coef(model)
+```
+
+La pendent estimada $\hat{\beta}_1$ indica el canvi mitjà en la proteïna per unitat de canvi en mRNA. Per exemple, si $\hat{\beta}_1 \approx 2.7$, voldrà dir que, de mitjana, un augment d’una unitat de mRNA incrementa la proteïna en 2.7 unitats.
+
+La intersecció estimada $\hat{\beta}_0$ representa el valor esperat de proteïna quan mRNA = 0. Tot i que no sempre té una interpretació biològica directa, pot reflectir un nivell basal de proteïna o un desplaçament sistemàtic del procés de mesura.
+
+Una altra informació rellevant és el `Multiple R-squared` i l’`Adjusted R-squared`.
+El primer, el Multiple R-squared, és el **coeficient de determinació** $R^2$. Tot i que en regressió simple només hi ha un predictor, R utilitza sempre el terme Multiple R-squared per coherència amb la regressió múltiple. $R^2$ indica quina proporció de la variabilitat de $y$ és explicada pel model lineal:\
+- $R^2=1$ indica un ajust perfecte,\
+- $R^2=0$ indica que el model no explica res.\
+- Valors intermedis de $R^2=0$ indiquen una explicació parcial.
+
+Formalment:
+
+$$ R^2 \; = \; \frac{\operatorname{SS_{\rm regr}}}{\operatorname{SS_{\rm tot}}}  \; = \;  1- \frac{\operatorname{SS_{\rm res}}}{\operatorname{SS_{\rm tot}}} $$
+on la suma total de quadrats $\operatorname{SS_{\rm tot}}$:
+
+$$\operatorname{SS_{\rm tot}} = \sum_{i=1}^N (y_i-\bar{y})^2$$
+
+és la variabilitat total de la variable resposta $y$ al voltant de la seva mitjana.
+
+$R^2$ sempre augmenta (o es manté igual) quan afegim predictors, encara que siguin inútils. Això passa perquè $\operatorname{SS_{\rm res}}$ només pot disminuir quan afegim termes al model. Per això no s’ha d’utilitzar mai l’$R^2$ per comparar models amb diferent nombre de predictors.
+
+En canvi, l’Adjusted R-squared:
+$$R^2_{\rm adj} = 1- (1- R^2)\frac{N-1}{N-p-1}$$
+on $N$ és el nombre d’observacions i $p$ és el nombre de predictors (sense comptar la intersecció), ajusta aquest valor pel nombre de variables del model, i és útil quan comparem models amb diferent nombre de predictors. Quan $p$ augmenta sense millorar l’explicació del model, el terme $\frac{N-1}{N-p-1}$ penalitza el model, fent baixar $R^2_{\rm adj}$.
+
+Finalment, al resum del model trobem els resultats de la prova global d’ANOVA per al model de regressió (estadístic $F$, graus de llibertat i $p$-valor). En regressió lineal simple, aquesta prova és equivalent al contrast sobre la pendent i, com veurem després, també equivalent al test de correlació de Pearson. En regressió múltiple, continua essent un test global, però ja no és equivalent a cap pendent individual.
+
+L’estadístic $F$ mesura la proporció de variància explicada pel model comparada amb la variància residual no explicada. En regressió lineal simple, l’estadístic $F$ és una transformació directa de $R^2$. Això fa que la prova global d’ANOVA sigui exactament equivalent a provar si $R^2$ és significativament diferent de zero. 
+
+---
+
+### Relació amb la correlació
+
+En regressió lineal simple, el test d’hipòtesis sobre la pendent és exactament el mateix que la prova de correlació de Pearson. Això no és una coincidència, és un resultat matemàtic fonamental, conseqüència del fet que totes dues proves contrasten la mateixa hipòtesi d’interès: l’existència d’una relació lineal entre les dues variables.
+
+Aquesta equivalència només és certa en el cas de regressió lineal simple. En regressions múltiples, els tests sobre cada pendent ja no equivalen a una correlació simple, perquè entren en joc correlacions parcials, dependències condicionals i efectes conjunts de les altres variables del model.
+
+A més, en regressió lineal simple el coeficient de determinació $R^2$, que mesura la proporció de variabilitat de la resposta explicada pel model, està directament relacionat amb el coeficient de correlació de Pearson $r$:
+$$R^2 = r^2$$
+Això significa que:\
+- si la correlació és forta ($|r|\approx 1$), el model tindrà un $R^2$ elevat,\
+- si la correlació és feble ($r$ petit) , el model explica poca variància.
+
+En models múltiples aquesta equivalència desapareix. El model pot tenir un $R^2$ alt fins i tot si cap predictor individual mostra una correlació elevada amb la resposta, perquè el model pot explicar variabilitat gràcies a l’efecte combinat de diverses variables.
+
+---
+
+### Diagnòstic del model
+
+Com passa amb qualsevol prova estadística, el test associat al model lineal només és vàlid si se'n compleixen els supòsits. En la pràctica, aquests supòsits no es comproven mitjançant tests numèrics (que sovint són poc fiables en mostres petites), sinó que s’avaluen principalment a través d’una **inspecció visual dels residus**.
+
+Perquè la regressió lineal sigui vàlida, cal que els residus:\
+- tinguin mitjana zero,\
+- no mostrin patrons sistemàtics quan es representen gràficament,\
+- presentin variància constant al llarg de les prediccions (homocedasticitat),\
+- siguin aproximadament normals.
+
+La majoria de programes estadístics, generen automàticament gràfics de diagnòstic que ajuden a avaluar aquests supòsits. En R, podem inspeccionar-los mitjançant els següents gràfics de diagnòstic:
+
+```{r}
+par(mfrow=c(1,2))
+plot(model, which=1) # residus vs valors ajustats
+plot(model, which=2) # QQ-plot
+par(mfrow=c(1,1))
+```
+
+En el gràfic de l’esquerra (“Residuals vs Fitted”), hem de comprovar que la dispersió dels punts és uniforme, sense formes de ventall ni corbes (indicadors d'heterocedasticitat o de no-linealitat).
+Al QQ-plot (gràfic de la dreta), els punts han de seguir aproximadament una línia recta, la qual cosa indica que els residus s’ajusten bé a la normalitat.
+
+---
+
+### Predicció amb intervals de confiança
+
+Una de les aplicacions més útils de la regressió lineal és que ens permet **predir la resposta** per a un nou valor del predictor. Per exemple, si volem estimar quina quantitat de proteïna correspon aproximadament a un nivell determinat d’expressió gènica (mRNA=12):
+
+```{r}
+new <- data.frame(mRNA = 12)
+
+# Interval de confiança per a la mitjana
+pred_conf <- predict(model, new, interval = "confidence")
+pred_conf
+```
+
+A més de la predicció (`fit`), també obtenim els valor `lwr` (*lower*) i `upr` (*upper*), que defineixen l’**interval de confiança** per a la **mitjana esperada** de la resposta quan mRNA = 12. Aquest interval reflecteix la incertesa en l’estimació de la recta de regressió, és a dir, en la mitjana teòrica per a aquest valor de mRNA.
+No inclou la variabilitat d’una observació individual.
+
+També podem obtenir l’**interval de predicció**, que és més ampli perquè incorpora la variabilitat pròpia de les observacions experimentals:
+
+```{r}
+# Interval de predicció per a una nova observació
+pred_pred <- predict(model, new, interval = "prediction")
+pred_pred
+```
+
+Podem visualitzar aquesta diferència de manera molt més clara mitjançant una representació gràfica:
+
+```{r}
+# Extreure valors numèrics
+y_hat      <- pred_conf[1]        # predicció puntual
+ci_lower   <- pred_conf[2]
+ci_upper   <- pred_conf[3]
+
+pi_lower   <- pred_pred[2]
+pi_upper   <- pred_pred[3]
+
+# Gràfic base
+plot(df$mRNA, df$proteina, pch = 19, col = "steelblue",
+     xlab = "Expressió gènica (mRNA)",
+     ylab = "Proteïna (a.u.)",
+     main = "Intervals de confiança i predicció")
+
+# Recta de regressió
+abline(model, col = "firebrick", lwd = 2)
+
+# Punt de predicció
+points(new$mRNA, y_hat, pch = 19, col = "black", cex = 1.5)
+
+# Interval de confiança (barra més estreta)
+arrows(new$mRNA, ci_lower, new$mRNA, ci_upper,
+       length = 0.08, angle = 90, code = 3,
+       lwd = 3, col = "forestgreen")
+
+# Interval de predicció (barra més ampla)
+arrows(new$mRNA + 0.05, pi_lower, new$mRNA + 0.1, pi_upper,
+       length = 0.08, angle = 90, code = 3,
+       lwd = 3, col = "orange")
+
+# Llegenda
+legend("topleft",
+       legend = c("Dades", "Recta de regressió",
+                  "Predicció puntual",
+                  "Interval de confiança",
+                  "Interval de predicció"),
+       pch = c(19, NA, 19, NA, NA),
+       lty = c(NA, 1, NA, 1, 1),
+       col = c("steelblue", "firebrick", "black",
+               "forestgreen", "orange"),
+       lwd = c(NA, 2, NA, 3, 3),
+       bty = "n")
+```
+
+Sovint es confonen els dos intervals. Una manera senzilla de distingir-los és pensar en què estem intentant predir:
+
+**Interval de confiança: incertesa del model.**
+Aquest interval ens indica on podria situar-se la **mitjana esperada** de la resposta per a un valor concret de mRNA. Una manera intuïtiva d’entendre-ho és imaginar que repetim l’estudi infinites vegades: cada vegada obtindríem una recta de regressió lleugerament diferent, i l’interval de confiança descriu on caurien aquestes mitjanes previstes per a mRNA = 12.
+Aquí, per tant, no parlem d’una observació individual, sinó de la resposta mitjana del sistema. L’interval de confiança reflecteix exclusivament la incertesa associada a l’estimació de la recta i no incorpora la variabilitat biològica entre mostres.
+
+**Interval de predicció: variabilitat de les dades.**
+En canvi, l’interval de predicció ens diu on pot situar-se una nova **observació individual** per al mateix valor de mRNA. És a dir, respon a la pregunta: “Si mesuro una nova mostra amb mRNA = 12, quin valor de proteïna podria obtenir?”
+A diferència de l’interval de confiança, aquí s’hi combina la incertesa de la recta i la variabilitat natural entre mostres. Reflecteix el fet que dues cèl·lules amb el mateix nivell de mRNA poden produir quantitats de proteïna diferents. Per això, l’interval de predicció és sempre molt més ampli que l’interval de confiança.
+
+---
+
+## Regressió lineal múltiple
+
+En molts sistemes biològics, una resposta cel·lular no depèn d’un únic factor, sinó de múltiples variables que actuen simultàniament. La **regressió lineal múltiple** és l’extensió natural de la regressió simple i permet quantificar l’efecte independent de cada predictor després de descomptar la variació explicada pels altres predictors.
+
+La forma general és:
+$$ y = \beta_0 + \beta_1 \, x_1 + \beta_2 \, x_2 +  \ldots + \beta_p \, x_p + \varepsilon $$
+
+on:\
+- $y$ és la variable resposta,\
+- $x_1, x_2, \dots, x_p$ són els predictors,\
+- $\beta_0$ és la intersecció,\
+- $\beta_i$ mesura l’efecte parcial de $x_i$ sobre $y$, és a dir, la part de la variació en $y$ associada a la component de $x_i$ que no pot ser predita a partir dels altres predictors,\
+- $\varepsilon$ representa el soroll o variabilitat no explicada.
+
+Igual que en la regressió simple, en regressió múltiple també existeix una fórmula tancada per calcular els coeficients. Tanmateix, no és pràctic calcular-la manualment: aquesta fórmula és numèricament inestable quan hi ha correlacions elevades entre els predictors. Per això, els programes estadístics moderns no utilitzen directament aquesta expressió tancada, sinó procediments numèrics que garanteixen estabilitat i precisió en el càlcul dels coeficients.
+
+---
+
+### Exemple biològic: regulació multifactorial de l’expressió proteica
+
+Suposem que volem estudiar quins factors determinen la quantitat final de proteïna produïda per una línia cel·lular. A més del nivell de mRNA, sabem que:\
+- alguns microRNAs poden inhibir la traducció,\
+- la disponibilitat de nutrients pot modular la síntesi proteica,\
+- tots tres factors poden interactuar o solapar-se parcialment.
+
+La regressió lineal múltiple ens permet respondre preguntes com:\
+- Quin és l’efecte real del mRNA sobre la proteïna, un cop controlem el microRNA i els nutrients?\
+- Quin predictor és més important en presència dels altres?\
+- Hi ha variables redundants o que expliquen la mateixa part de la variabilitat?
+
+Comencem carregant les dades:
+
+```{r}
+df_mult <- read.csv('datasets/regressio/multi_mRNA.csv')
+str(df_mult)
+```
+
+Abans d’ajustar un model múltiple, és bona pràctica inspeccionar cada relació individualment. Representem cada predictor enfront de la proteïna. Per facilitar la comparació utilitzem la mateixa escala a l’eix vertical:
+
+```{r, fig.height=10, fig.width=6}
+par(mfrow=c(3,1))
+
+yr <- range(df_mult$proteina)
+
+plot(df_mult$mRNA, df_mult$proteina,
+     pch=19, cex=1.5,
+     col="steelblue",
+     xlab="mRNA", ylab="Proteïna", ylim=yr,
+     cex.lab=1.4, cex.axis=1.2)
+
+plot(df_mult$microRNA, df_mult$proteina,
+     pch=19, cex=1.5,
+     col="firebrick",
+     xlab="microRNA", ylab="Proteïna", ylim=yr,
+     cex.lab=1.4, cex.axis=1.2)
+
+plot(df_mult$nutrients, df_mult$proteina,
+     pch=19, cex=1.5,
+     col="darkgreen",
+     xlab="Nutrients", ylab="Proteïna", ylim=yr,
+     cex.lab=1.4, cex.axis=1.2)
+
+par(mfrow=c(1,1))
+```
+
+Les dades presenten variabilitat inherent i soroll experimental. Per tant, a partir dels gràfics és difícil distingir quin efecte correspon realment a cada predictor i quina part del patró observable és deguda a la influència simultània dels altres. Per això és necessari utilitzar una regressió múltiple, que permet separar i quantificar l’efecte independent de cada variable.
+
+---
+
+### Ajust del model de regressió múltiple en R
+
+Ajustem el model utilitzant la funció `lm()`:
+```{r}
+model_mult <- lm(proteina ~ mRNA + microRNA + nutrients, data = df_mult)
+summary(model_mult)
+```
+
+La sortida és similar a la del model lineal simple, però ampliada per tenir en compte múltiples predictors. En particular, mostra:\
+- l’estadística descriptiva dels residus,\
+- els coeficients parcials $\hat{\beta}_i$ amb els seus errors,\
+- el test $t$ individual per a cada predictor (per contrastar $H_0: \beta_i = 0$),\
+- el $R^2$ i el $R^2_{\rm adj}$,\
+- la prova global d’ANOVA, que avalua si el conjunt dels predictors explica una fracció significativa de la variància de la resposta.
+
+---
+
+### Interpretació del model
+
+El model ajustat mostra que tant el mRNA com el microRNA tenen un efecte significatiu sobre la quantitat de proteïna. El mRNA és clarament el predictor dominant: un cop “controlats” el microRNA i els nutrients, cada unitat addicional de mRNA s’associa amb un increment mitjà d’aproximadament 3.09 unitats de proteïna. El $p$-valor extremadament petit confirma que aquest efecte és altament significatiu i difícilment atribuïble a l’atzar.
+
+El microRNA també té un paper rellevant. El coeficient estimat indica que cada unitat de microRNA redueix la proteïna en aproximadament 1.88 unitats, mantenint constants els altres predictors. Aquest efecte negatiu és coherent amb el rol habitual dels microRNAs com a inhibidors de la traducció.
+
+En canvi, el model no detecta cap efecte significatiu dels nutrients. Encara que el coeficient és positiu, la seva incertesa és molt elevada. Això pot ser degut al soroll experimental o bé al fet que els nutrients comparteixen variabilitat amb mRNA o microRNA, de manera que el model no pot aïllar un efecte independent.
+
+El $R^2 \approx 0.34$ indica que el model explica al voltant del 34% de la variabilitat total de la proteïna, un valor moderat però habitual en dades biològiques, especialment quan hi ha soroll i múltiples vies regulatòries. Finalment, la prova ANOVA global confirma que el model és significatiu: com a mínim un dels predictors està associat amb la proteïna.
+
+---
+
+### Representació dels resultats
+
+Ara representarem les relacions parcials entre cada predictor i la proteïna, juntament amb les prediccions generades pel model múltiple. Abans, però, cal tenir present un punt important. Quan ajustem una regressió múltiple, el model opera en un espai multidimensional: la predicció de la proteïna depèn simultàniament del mRNA, del microRNA i dels nutrients. En conseqüència, quan intentem dibuixar aquesta relació en un gràfic bidimensional, és a dir, proteïna en funció d’un sol predictor, perdem informació sobre les altres dimensions.
+
+Si simplement representem les **prediccions del model** en funció d’un únic predictor, aquestes no formaran una recta. Cada punt del model correspon a una combinació diferent dels altres predictors, i per tant la variació d’un predictor no es pot separar visualment de la variació dels altres. Això fa que el núvol de prediccions del model sembli “desordenat”, encara que el model matemàtic sigui perfectament lineal.
+
+Per obtenir una recta interpretable hem de fixar els altres predictors a valors constants. Una opció natural és assignar-los el seu valor mitjà. Així podem calcular com variaria la proteïna si només modifiquéssim el predictor d’interès, mantenint els altres factors “sota control”. Aquesta recta rep el nom de **recta de regressió parcial** i ens mostra l’efecte propi d’un predictor un cop eliminada matemàticament la influència dels altres.
+
+Per il·lustrar aquest doble punt de vista, representarem simultàniament les dues coses: d’una banda, els **valors ajustats pel model múltiple** (com a punts buits), que reflecteixen la predicció completa tenint en compte tots els predictors; i de l’altra, les **rectes de regressió parcial**, que indiquen com es comportaria la proteïna si només variés un predictor mentre que els altres romanen fixats al seu valor mitjà. Aquesta combinació permet veure tant el funcionament del model en l’espai multidimensional com el paper individual de cada variable.
+
+
+```{r, fig.height=10, fig.width=6}
+## Valors mitjans dels altres predictors
+mRNA_mean      <- mean(df_mult$mRNA)
+microRNA_mean  <- mean(df_mult$microRNA)
+nutrients_mean <- mean(df_mult$nutrients)
+
+par(mfrow = c(3, 1))
+
+## 1) Efecte parcial de mRNA (microRNA i nutrients fixats als seus mitjans)
+x_seq <- seq(min(df_mult$mRNA), max(df_mult$mRNA), length.out = 100)
+
+new_mRNA <- data.frame(
+  mRNA      = x_seq,
+  microRNA  = microRNA_mean,
+  nutrients = nutrients_mean
+)
+
+y_hat_mRNA <- predict(model_mult, newdata = new_mRNA)
+
+plot(df_mult$mRNA, df_mult$proteina,
+     pch = 19, cex = 1.2,
+     col = "steelblue",
+     xlab = "mRNA",
+     ylab = "Proteïna",
+     ylim = yr,
+     main = "Efecte parcial de mRNA (microRNA, nutrients a la mitjana)"
+)
+lines(x_seq, y_hat_mRNA, lwd = 2, col = "steelblue")
+points(df_mult$mRNA, fitted(model_mult),
+       pch = 1, col = "steelblue", cex = 1.3)
+
+
+## 2) Efecte parcial de microRNA (mRNA i nutrients fixats als seus mitjans)
+x_seq <- seq(min(df_mult$microRNA), max(df_mult$microRNA), length.out = 100)
+
+new_micro <- data.frame(
+  mRNA      = mRNA_mean,
+  microRNA  = x_seq,
+  nutrients = nutrients_mean
+)
+
+y_hat_micro <- predict(model_mult, newdata = new_micro)
+
+plot(df_mult$microRNA, df_mult$proteina,
+     pch = 19, cex = 1.2,
+     col = "firebrick",
+     xlab = "microRNA",
+     ylab = "Proteïna",
+     ylim = yr,
+     main = "Efecte parcial de microRNA (mRNA, nutrients a la mitjana)"
+)
+lines(x_seq, y_hat_micro, lwd = 2, col = "firebrick")
+points(df_mult$microRNA, fitted(model_mult),
+       pch = 1, col = "firebrick", cex = 1.3)
+
+## 3) Efecte parcial de nutrients (mRNA i microRNA fixats als seus mitjans)
+x_seq <- seq(min(df_mult$nutrients), max(df_mult$nutrients), length.out = 100)
+
+new_nutr <- data.frame(
+  mRNA      = mRNA_mean,
+  microRNA  = microRNA_mean,
+  nutrients = x_seq
+)
+
+y_hat_nutr <- predict(model_mult, newdata = new_nutr)
+
+plot(df_mult$nutrients, df_mult$proteina,
+     pch = 19, cex = 1.2,
+     col = "darkgreen",
+     xlab = "Nutrients",
+     ylab = "Proteïna",
+     ylim = yr,
+     main = "Efecte parcial de nutrients (mRNA, microRNA a la mitjana)"
+)
+lines(x_seq, y_hat_nutr, lwd = 2, col = "darkgreen")
+points(df_mult$nutrients, fitted(model_mult),
+       pch = 1, col = "darkgreen", cex = 1.3)
+
+par(mfrow = c(1, 1))
+```
+
+---
+
+### Proposta de model alternatiu
+
+Atès que el predictor nutrients no és significatiu i no sembla millorar l’ajust, podem considerar un model reduït que només inclogui els dos predictors realment informatius:
+
+```{r}
+model_alt <- lm(proteina ~ mRNA + microRNA, data = df_mult)
+summary(model_alt)
+```
+
+Per comparar els dos models és preferible utilitzar l’$R^2_{\rm adj}$, ja que aquest indicador penalitza la inclusió de predictors que no aporten informació addicional. Cal recordar que l’$R^2$ sempre augmenta (o es manté igual) quan afegim més predictors al model, fins i tot si aquests predictors no tenen cap relació real amb la resposta. Per tant, l’$R^2_{\rm adj}$ és l’eina adequada per decidir si val la pena mantenir o eliminar una variable.
+
+Si l’$R^2_{\rm adj}$ del model reduït augmenta, vol dir que eliminar nutrients millora el model. Si disminueix només lleugerament, el predictor descartat aporta molt poc i el model simple és preferible per simplicitat. Només si l’$R^2_{\rm adj}$ baixa clarament podríem sospitar que nutrients tenia algun efecte rellevant.
+
+En aquest cas, l’$R^2_{\rm adj}$ del model reduït és lleugerament superior al del model complet. Això suggereix que la variable nutrients no contribueix de manera independent a explicar la proteïna, i que eliminar-la simplifica el model sense perdre capacitat predictiva. Aquest és un exemple típic de com la regressió múltiple permet distingir entre correlacions aparents i efectes independents entre predictors.
+
+```{r, eval=FALSE, echo=FALSE}
+## Regressió lineal amb variables categoriques
+
+#L'ANOVA també és un model linear.
+#La raó és que lo que fa l'ANOVA es pot escriure com a:
+#$$ y_j = \mu + \eta_j +\varepsilon $$
+#Pero l'ANOVA ho fem amb variables categoriques mentre que la regressió la fem
+#amb variables quantitatives. Podem fer una regressió respecte a una variable
+#categorica?
+#Si, pero correspon exactament a fer una prova anova!
+
+#Podem descriure dos casos:\
+#- la variable categorica té nivells ordenats,\
+#- la variable categorica no té nivells ordenats.
+
+#Incloure una variable categòrica com fase en un model de regressió és
+#matemàticament equivalent a fer un ANOVA ajustat. No s’assumeix cap ordre
+#entre les fases, llevat que l’investigador declari explícitament que la
+#variable és ordinal.
+```

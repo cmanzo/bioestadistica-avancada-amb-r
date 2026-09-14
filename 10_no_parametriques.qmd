@@ -1,0 +1,409 @@
+---
+title: "Proves no paramètriques"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+
+En els capítols anteriors hem vist com, davant la violació dels supòsits de normalitat i homogeneïtat de variàncies, podem aplicar transformacions de la variable dependent per acostar-nos a les condicions requerides pels tests paramètrics.
+
+Tot i així, hi ha situacions en què les transformacions no aconsegueixen normalitzar les dades o bé no tenen sentit biològic (per exemple, en dades molt asimètriques amb valors extrems o en escales **ordinals**). En aquests casos, disposem d’una alternativa robusta: les **proves no paramètriques**.
+
+---
+
+## Proves no paramètriques
+
+Les proves no paramètriques són mètodes estadístics que no assumeixen cap forma concreta de distribució per a les dades. A diferència dels tests paramètrics, que operen amb els valors originals, les proves no paramètriques treballen amb el rang o ordre relatiu de les observacions dins del conjunt de dades.
+
+---
+
+### El concepte de rang
+
+Suposem que tenim un conjunt de valors:
+```{r}
+valors <- c(5, 8, 2, 10, 1)
+```
+
+Assignem rangs que corresponen a la posició d’aquests valors, del menor al major:
+
+```{r}
+rangs <- rank(valors)
+rangs
+```
+
+Els podem fer servir per reordenar els valors:
+```{r}
+valors_ordenats <- valors[order(rangs)]
+valors_ordenats
+``` 
+
+Els rangs preserven l’ordre de les dades però no la seva distància. Això elimina la influència dels valors extrems i redueix la necessitat d’assumir normalitat o variàncies iguals.
+
+Aquest enfocament permet eliminar la dependència de la forma de la distribució i fer anàlisis robustes quan les dades no compleixen els supòsits clàssics.
+
+Al mateix temps, treballar amb rangs implica perdre part de la **informació quantitativa** original, ja que només es conserva l’ordre de les observacions però no la magnitud de les diferències.
+Per aquest motiu, sempre que sigui possible és preferible utilitzar proves paramètriques, que aprofiten tota la informació numèrica disponible i tenen més potència estadística.
+
+Hi ha dues situacions típiques en què les proves no paramètriques són especialment útils:\
+- dades molt asimètriques o amb valors extrems;\
+- variables en escales ordinals.
+
+---
+
+#### Dades molt asimètriques o amb valors extrems {.unlisted .unnumbered}
+
+En alguns experiments biològics, les dades poden presentar asimetries molt marcades o valors extrems (*outliers*) que no poden corregir-se adequadament amb transformacions. Això passa sovint, per exemple, en mesures de concentració de biomolècules, temps de reacció enzimàtica o nombre de còpies gèniques, on els valors poden variar en diversos ordres de magnitud.
+
+Quan aquestes desviacions són molt fortes, els tests paramètrics deixen de ser fiables, i les proves no paramètriques ofereixen una alternativa més segura.
+
+---
+
+#### Variables en escales ordinals {.unlisted .unnumbered}
+
+El segon cas és quan les observacions no són quantitatives, sinó que només expressen un ordre.
+Això és típic de les escales ordinals, per exemple de tipus Likert (per exemple, “baix”, “mitjà”, “alt”) o de valoracions subjectives.
+
+---
+
+### Escales de mesura
+
+Per entendre aquesta diferència, imaginem el següent exemple: suposem que volem comprovar si quatre incubadores diferents mantenen la temperatura de cultiu amb la mateixa estabilitat. Podem fer-ho de dues maneres: amb una mesura quantitativa o una mesura ordinal.
+
+---
+
+#### Mesura quantitativa {.unlisted .unnumbered}
+
+Instal·lem un sensor digital en cada incubadora i mesurem la temperatura en graus Celsius.
+En aquest cas, podem dir que una incubadora a 37,5$~\textdegree$C és 10 graus més calenta que una altra a 27,5$~\textdegree$C, i aquesta diferència té un significat físic real i mesurable, ja que la temperatura s’expressa en una escala amb unitats igualment espaiades.
+Això vol dir que la diferència entre 27,5$~\textdegree$C i 37,5$~\textdegree$C és equivalent a la que hi ha entre 37,5$~\textdegree$C i 47,5$~\textdegree$C: podem parlar amb sentit de **diferències absolutes i comparables**.
+
+Aquest tipus de dades s’anomena **escala d’intervalls**, perquè només tenen sentit les diferències, però no les proporcions. En l’escala Celsius, el zero és simplement un punt de referència (el punt de congelació de l’aigua), no una absència real de calor.
+
+Si expresséssim la temperatura en Kelvin, on el zero representa absència real d’energia tèrmica, aleshores sí que parlaríem d’una **escala de raó**, que permet comparar tant diferències com proporcions.
+
+:::: {.content-visible when-format="html"}
+::: {.callout-tip}
+## Curiositat: per què "20°C" no és el doble de "10°C"
+
+Dir que "20$~\textdegree$C és el doble de 10$~\textdegree$C" no té cap sentit físic, perquè l'escala Celsius és d'intervalls, no de raó: el seu zero és arbitrari (el punt de congelació de l'aigua), no una absència real de calor. En canvi, en Kelvin sí que té sentit dir-ho: 200 K és, literalment, el doble d'energia tèrmica que 100 K.
+
+Aquesta mateixa trampa apareix en altres escales quotidianes que fem servir sense pensar-hi: els anys del calendari (l'any 2000 no és "el doble" de l'any 1000), les puntuacions d'un test d'intel·ligència, o la temperatura en graus Fahrenheit. Totes elles són escales d'intervalls, no de raó — es pot restar, però no dividir.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{examplebox}
+```
+**Curiositat: per què "20°C" no és el doble de "10°C"**
+
+Dir que "20$~\textdegree$C és el doble de 10$~\textdegree$C" no té cap sentit físic, perquè l'escala Celsius és d'intervalls, no de raó: el seu zero és arbitrari (el punt de congelació de l'aigua), no una absència real de calor. En canvi, en Kelvin sí que té sentit dir-ho: 200 K és, literalment, el doble d'energia tèrmica que 100 K.
+
+Aquesta mateixa trampa apareix en altres escales quotidianes que fem servir sense pensar-hi: els anys del calendari (l'any 2000 no és "el doble" de l'any 1000), les puntuacions d'un test d'intel·ligència, o la temperatura en graus Fahrenheit. Totes elles són escales d'intervalls, no de raó — es pot restar, però no dividir.
+
+```{=latex}
+\end{examplebox}
+```
+:::
+
+Moltes variables biològiques, com la concentració de proteïnes, el temps de duplicació cel·lular o la massa d’un organisme, són d’escala de raó, ja que el zero significa absència de la magnitud i és coherent dir que "una mostra té el doble de concentració que una altra".
+
+Les dades de les escales de raó i d'intervalls són numèriques i poden analitzar-se amb mètodes paramètrics, sempre que es compleixin els supòsits.
+
+---
+
+#### Mesura ordinal (percepció subjectiva) {.unlisted .unnumbered}
+
+Demanem a un grup de tècnics que classifiquin les incubadores de "la més freda" a "la més calenta", basant-se en la seva sensació al tacte del vidre o del flux d’aire.
+En aquest cas, només podem confiar en l’ordre (sabem quina incubadora sembla més calenta que una altra), però no en la magnitud de la diferència entre elles. No tindria sentit parlar de "10 graus més calenta": només sabem que és més calenta.
+
+Aquest segon tipus de dades s’anomena **escala ordinal**.
+No podem calcular diferències ni mitjanes en sentit numèric, però sí podem comparar els ordres relatius. És aquí on les proves no paramètriques esdevenen imprescindibles.
+
+---
+
+## La prova de Mann–Whitney (o Wilcoxon rank-sum)
+
+Quan volem comparar dos grups independents i les dades no compleixen els supòsits de normalitat i homogeneïtat de variàncies, podem utilitzar la **prova de Mann–Whitney**, també coneguda com a prova de Wilcoxon per mostres independents.
+Aquesta és l’alternativa **no paramètrica** a la prova *t* per mostres independents i es basa en comparar la **distribució dels rangs** dels dos grups.
+
+---
+
+### Idea general
+
+1. Es combinen totes les observacions dels dos grups i se’ls assignen **rangs** de 1 a $N = n_1 + n_2$, on $n_1$ i $n_2$ són les mides de cada grup.  
+2. Es calcula la **suma dels rangs** dels primer grup, $R_1$.  
+   Si els dos grups provenen de la mateixa població (hipòtesi nul·la), esperem que els seus rangs siguin **barrejats aleatòriament**, i per tant $R_1$ i $R_2$ (la suma de rangs del segon grup) haurien de ser similars.  
+3. Si un grup tendeix a tenir valors més grans, la seva **suma de rangs** serà també més gran.
+
+---
+
+### L’estadístic de Mann–Whitney
+
+A partir de la suma dels rangs $R_1$ del primer grup, l’estadístic es calcula com:
+
+$$U_1 = R_1 - \frac{n_1(n_1 + 1)}{2}$$
+
+De manera anàloga per al segon grup:
+
+$$U_2 = R_2 - \frac{n_2(n_2 + 1)}{2}$$
+
+Com que $U_1 + U_2 = n_1 n_2$, només cal calcular-ne un.
+
+L’estadístic de prova és:
+
+$$U = \min(U_1, U_2)$$
+
+Com més petit sigui $U$, més separades estan les distribucions dels dos grups.
+De fet, el terme $\frac{n(n+1)}{2}$ representa el sumatori dels primers $n$ nombres enters positius, és a dir, la suma dels rangs que tindria un grup si tots els seus valors fossin els més petits possibles. En aquesta situació extrema (quan totes les observacions d’un grup són menors que les de l’altre) el valor de $U$ és zero, indicant la màxima diferència possible entre grups.
+
+---
+
+### Distribució de referència i correcció
+
+Per mostres grans ($n_1, n_2 > 10$), la distribució de $U$ **s’aproxima a una normal** amb:
+
+$$\mu_U = \frac{n_1 n_2}{2}
+\quad \text{i} \quad
+\sigma_U = \sqrt{\frac{n_1 n_2 (n_1 + n_2 + 1)}{12}}
+$$
+
+El valor $Z$ es calcula com:
+
+$$Z = \frac{U - \mu_U}{\sigma_U}$$
+
+I el $p$-value s’obté com la probabilitat de trobar un valor tan extrem o més sota la distribució normal estàndard.
+
+Quan les mides de mostra són petites ($n_1, n_2 \leq 10$), la distribució de $U$ no pot aproximar-se adequadament amb una distribució normal. En aquests casos, es calcula el valor $p$ utilitzant la distribució exacta de $U$, que és coneguda per enumeració de totes les possibles combinacions de rangs entre els dos grups.
+
+Aquesta distribució exacta permet determinar la probabilitat exacta d’obtenir un valor de $U$ igual o més extrem que l’observat sota la hipòtesi nul·la.
+
+En R, la funció `wilcox.test()` tria automàticament el mètode adequat. Si l’argument `exact` no s’especifica, es calcula un $p$-value exacte quan les mostres contenen menys de 50 valors finits i no hi ha empats. En qualsevol altre cas, s’utilitza l’aproximació normal.
+
+Si vols forçar el comportament:
+
+```{r, eval=FALSE}
+wilcox.test(obs~grup, exact = TRUE)   # força el càlcul exacte
+wilcox.test(obs~grup, exact = FALSE)  # força l’aproximació normal
+```
+
+---
+
+### Tractament dels empats i correcció de rangs
+
+La prova de Mann–Whitney assumeix que tots els valors són diferents, de manera que els rangs es poden assignar de forma única.  Quan hi ha **valors iguals** (empats, observacions amb el mateix valor), els rangs corresponents es **substitueixen pel rang mitjà** de les posicions que ocuparien si fossin diferents.
+
+Això no altera el valor esperat de $U$, però **redueix la seva variància**, ja que els empats eliminen part de la informació d’ordre (és a dir, hi ha menys "diferències efectives" entre observacions).
+
+Com a conseqüència, es corregeix la variància teòrica de la distribució de $U$ afegint un **factor de correcció** que depèn del nombre d’observacions empatades $t_i$ dins de cada grup d’empats:
+
+$$\sigma_U = \sqrt{ \frac{n_1 n_2}{12} \left[ (N + 1) - \frac{\sum_i (t_i^3 - t_i)}{N (N - 1)}\right]}$$
+
+on $N = n_1 + n_2$.
+
+Aquesta correcció redueix lleugerament la desviació estàndard i, per tant, **ajusta el càlcul del valor $p$**, fent el test més conservador quan hi ha empats.
+
+
+---
+
+### Hipòtesis i interpretació
+
+- **$H_0$:** Les dues mostres provenen de la mateixa població (les seves distribucions són iguals).  
+- **$H_1$:** Les dues mostres provenen de poblacions amb distribucions diferents (un grup tendeix a tenir valors més grans o més petits).
+
+- Si $p > 0{,}05$: no hi ha evidència suficient per rebutjar $H_0$; les dues distribucions poden ser iguals.  
+- Si $p \le 0{,}05$: rebutgem $H_0$; hi ha diferències significatives entre grups.
+
+---
+
+## La prova de Kruskal-Wallis
+
+Quan volem comparar més de dos grups independents i les dades no permeten aplicar l’ANOVA, podem utilitzar la **prova de Kruskal–Wallis**.
+Aquesta prova és l’equivalent no paramètric de l’ANOVA d’un factor i es basa en comparar la distribució dels rangs entre grups.
+
+### Idea general
+
+Suposem que tenim $G$ grups independents amb mides $n_1, n_2, \dots, n_G$ i un total de $N = n_1 + n_2 + \dots + n_G$ observacions.
+
+1. **Combinem totes les observacions** i els assignem **rangs** del 1 al $N$. En cas d’empats, s’assigna la mitjana dels rangs.\ 
+2. **Calculem la suma dels rangs** de cada grup $R_j$.\
+3. Si tots els grups provenen de la mateixa població (hipòtesi nul·la), **les sumes de rangs haurien de ser similars**. Si almenys un grup té una distribució diferent, els seus rangs tendiran a ser més alts o més baixos.
+
+---
+
+### L’estadístic de Kruskal–Wallis
+
+L’estadístic es defineix com:
+
+$$H = \frac{12}{N(N+1)} \sum_{j=1}^{k} \frac{R_j^2}{n_j} - 3(N+1)$$
+
+on:\
+- $R_j$ és la **suma dels rangs** del grup $j$,\
+- $n_j$ és la **mida del grup** $j$,\
+- $N$ és el **nombre total d’observacions**.
+
+Si hi ha **empats**, s’aplica una **correcció** que ajusta l’estadístic $H$.
+
+---
+
+### Distribució de referència
+
+Quan les mides de mostra són prou grans (normalment $n_j > 5$), l’estadístic $H$ **segueix aproximadament una distribució $\chi^2$** (chi-quadrat) amb:
+
+$$\text{graus de llibertat} = G - 1$$
+
+Per tant, el valor $p$ s’obté com:
+
+$$p = 1 - F_{\chi^2_{G-1}}(H)$$
+
+on $F_{\chi^2_{G-1}}$ és la funció de distribució acumulada del $\chi^2$ amb $G-1$ graus de llibertat.
+
+Quan les mostres són petites o hi ha molts empats, l’aproximació $\chi^2$ pot ser imprecisa. En aquests casos, el valor $p$ es pot obtenir mitjançant:\
+- **distribució exacta de rangs** (tots els ordres possibles),\
+- **simulació per permutacions**, que estima el valor $p$ a partir de milers de rearranjaments aleatoris de les observacions entre grups.
+
+En R, la funció `kruskal.test()` utilitza sempre l’aproximació $\chi^2$, però podem obtenir un valor $p$ més acurat amb un test de permutació fent servir la funció `kruskal_test()` de la llibreria `coin`:
+
+```{r, eval=FALSE}
+library(coin)
+# Exemple de prova exacta (permutacions)
+kruskal_test(obs ~ grup, distribution = "exact")
+```
+
+Això és especialment recomanable quan $N$ és petit o algun grup té menys de 5 observacions.
+
+---
+
+### Hipòtesis i interpretació
+
+- **$H_0$:** Les distribucions dels $G$ grups són iguals (no hi ha diferències sistemàtiques entre grups).  
+- **$H_1$:** Almenys un grup té una distribució diferent.
+
+- Si $p > 0{,}05$: no hi ha evidència suficient per rebutjar $H_0$; tots els grups poden provenir de la mateixa distribució.  
+- Si $p \le 0{,}05$: rebutgem $H_0$; almenys un grup difereix significativament dels altres.  
+
+En aquest cas, podem aplicar proves **post-hoc** (com el **test de Dunn** o el **Wilcoxon per parells**) per identificar quins grups són diferents.
+
+---
+
+### Exemple amb R
+
+Treballarem amb el mateix conjunt de dades utilitzat per a la prova ANOVA:
+
+```{r}
+df_bioreact <- read.csv("datasets/bioreact/bioreact_tots.csv")
+str(df_bioreact)
+```
+
+Volem comprovar si hi ha diferències significatives entre medis de cultiu pel que fa al títol del cultiu (`titol`).
+Ja vam veure que en aquest conjunt les dades verifiquen els supòsits d’ANOVA (normalitat i homogeneïtat de variàncies).
+Tot i així, és instructiu aplicar la prova de Kruskal–Wallis per veure com es comporta en comparació.
+
+Primer, ens assegurem que la variable `medi` sigui un factor:
+
+```{r}
+df_bioreact$medi <- factor(df_bioreact$medi)
+```
+
+Apliquem la prova de Kruskal–Wallis:
+
+```{r}
+kw <- kruskal.test(titol~medi, data=df_bioreact)
+kw
+```
+Veiem que la prova dona un valor de $p < 0{,}05$, indicant diferències significatives entre medis.
+A més, el $p$-value és molt similar al de l’ANOVA, cosa que vol dir que en aquest cas la transformació dels valors en rangs no altera substancialment el resultat.
+
+Això passa perquè la distribució original ja era força simètrica i amb variàncies similars: el test basat en rangs "replica" el mateix patró detectat per l’ANOVA.
+
+Podem visualitzar aquesta idea comparant els boxplots dels valors originals amb els boxplots dels rangs que utilitza la prova de Kruskal–Wallis:
+
+```{r}
+par(mfrow = c(1, 2))
+
+# Boxplot amb valors originals
+boxplot(titol ~ medi, data = df_bioreact,
+main = "Valors originals",
+ylab = "Títol del cultiu")
+
+# Boxplot amb rangs
+df_bioreact$rangs <- rank(df_bioreact$titol)
+boxplot(rangs ~ medi, data = df_bioreact,
+main = "Rangs",
+ylab = "Rangs")
+```
+
+Els dos gràfics mostren patrons molt semblants: el medi que produeix un títol més alt també té rangs mitjans més elevats.
+Això confirma que, quan els supòsits es compleixen, Kruskal–Wallis i ANOVA condueixen a conclusions pràcticament idèntiques, tot i basar-se en conceptes diferents (valors vs rangs).
+
+---
+
+Els resultats de Kruskal–Wallis i ANOVA poden divergir quan les dades no són normals o les variàncies entre grups són molt diferents. En aquestes situacions, els valors extrems o la dispersió desigual poden afectar fortament la mitjana (que és la base de l’ANOVA), mentre que el test de Kruskal–Wallis, en treballar amb rangs, és menys sensible als valors extrems i capta millor les diferències de posició central (mediana) entre grups.
+
+Això ho podem comprovar amb les dades de temps de duplicació que vam fer servir en el capítol sobre les transformacions de variables:
+
+```{r}
+df_dupl <- read.csv("datasets/duplicacio/temps_duplicacio.csv")
+str(df_dupl)
+```
+
+Considerem ara les diferències respecte al medi:
+
+```{r}
+df_dupl$medi <- factor(df_dupl$medi)
+```
+
+amb l’ANOVA (sense fer cap transformació, encara que no es verifiquin els supòsits):
+
+```{r}
+anova <- aov(temps_dupl~medi, data=df_dupl)
+summary(anova)
+```
+
+i amb la prova de Kruskal–Wallis:
+
+```{r}
+kw <- kruskal.test(temps_dupl~medi, data=df_dupl)
+kw
+```
+Veiem que, encara que les dues proves són consistents (arriben a la mateixa conclusió qualitativa), el valor $p$ del test de Kruskal–Wallis és un ordre de magnitud més alt del de la prova ANOVA, cosa que reflecteix la seva major robustesa davant asimetries i valors extrems.
+
+Com podem veure en els gràfics següents, els rangs redueixen l’efecte dels valors extrems (tots els rangs estan dins d’intervals semblants) i fan que les variàncies entre grups siguin més comparables:
+
+```{r}
+par(mfrow = c(1, 2))
+
+# Boxplot amb valors originals
+boxplot(temps_dupl ~ medi, data = df_dupl,
+main = "Valors originals",
+ylab = "Temps de duplicació")
+
+# Boxplot amb rangs
+df_dupl$rangs <- rank(df_dupl$temps_dupl)
+boxplot(rangs ~ medi, data = df_dupl,
+main = "Rangs",
+ylab = "Rangs")
+
+par(mfrow = c(1, 1))
+```
+
+### Mitjana i mediana: què compara cada prova?
+
+Una altra manera d’entendre la diferència entre ANOVA i Kruskal–Wallis és fixar-se en la **mesura central** que compara cada prova:
+
+| Prova | Tipus de dades | Mesura central comparada | Sensible a |
+|-----------|----------------|--------------------|-----------------|
+| **ANOVA** | Quantitatives, normalitat i homogeneïtat | **Mitjana** | Valors extrems i dispersió desigual |
+| **Kruskal–Wallis** | Quantitatives o ordinals, sense suposar normalitat | **Mediana (via rangs)** | Només a l’ordre relatiu de les dades |
+
+- L’**ANOVA** detecta diferències en les **mitjanes** entre grups, però pot exagerar la significació si hi ha valors extrems o variàncies molt diferents.  
+- El **Kruskal–Wallis**, en canvi, es basa en els rangs que reflecteixen les **medianes**. És més **robust** davant outliers i asimetries, però menys sensible a petites diferències si les dades són molt regulars.
+
+Així, si les dades són normals i ben distribuïdes, **mitjana i mediana coincideixen**, i tots dos tests donen conclusions semblants.  
+En canvi, quan la distribució és molt asimètrica, **les mitjanes i les medianes divergeixen**, i els dos tests poden conduir a resultats diferents.

@@ -1,0 +1,527 @@
+---
+title: "ANOVA de mesures repetides"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+```{r, echo=FALSE, results="hide"}
+df_tots <- read.csv("datasets/bioreact/bioreact_tots.csv")
+df_tots$medi <- factor(df_tots$medi)
+anova_bioreact <- aov(df_tots$titol ~ df_tots$medi)
+```
+
+Fins ara hem fet servir una prova per analitzar una única variable categòrica, l’**ANOVA d’un factor**, amb l’objectiu de comprovar si hi ha diferències entre grups independents. Ara anirem un pas més enllà i estudiarem el cas en què les dades provenen del mateix subjecte o condició mesurats en diferents moments o situacions. En aquest cas no es compleix el supòsit d’independència, i per això utilitzarem una prova d’**ANOVA de mesures repetides**.
+
+------------------------------------------------------------------------
+
+## El nostre dataset
+
+Recordem el dataset que hem fet servir anteriorment amb els estudiants de biotecnologia i els seus bioreactors. Al capítol 3 en vam filtrar les columnes i ens vam quedar només amb `medi` i `titol`; ara tornem a carregar el fitxer complet per recuperar la columna que ens havíem guardat per a aquest capítol.
+
+```{r}
+df_tots <- read.csv("datasets/bioreact/bioreact_tots.csv")
+str(df_tots)
+```
+
+A més de les variables de **medi de cultiu** i de **títol**, el fitxer també inclou el **bioreactor** que va fer servir cada grup, tal com havíem avançat al capítol 3: cada grup utilitzava sempre el mateix bioreactor i repetia les mesures al llarg de diversos dies.
+
+Això té una conseqüència important: potser no hi ha **independència total entre observacions**. Per exemple, si un bioreactor està lleugerament descalibrat, les seves lectures poden ser sistemàticament diferents de les dels altres, independentment del medi de cultiu.
+
+Com podem analitzar, doncs, l’efecte del medi de cultiu tenint en compte aquest possible problema?
+La resposta és utilitzar un **ANOVA de mesures repetides**: en comptes de tractar totes les mesures com a independents, es considera explícitament que les dades provenen del mateix subjecte (bioreactor) sota condicions repetides.
+
+Per tant, tindrem dues variables categòriques:\
+- **Efecte** (`medi`): la condició que ens interessa provar.\
+- **Subjecte** (`bioreactor`): la font de variabilitat intra-subjecte que cal controlar.
+
+```{r}
+df_tots$medi <- factor(df_tots$medi)
+df_tots$bioreactor <- factor(df_tots$bioreactor)
+```
+
+Per simplificar l'explicació, considerem només una observació per grup, doncs fixem el dia i el nivell d'agitació:
+
+```{r}
+#Fixem un sol dia i un sol nivell d'agitació
+# (per exemple, el primer dia i agitació = 200 rpm)
+df_simpl <- subset(df_tots, data == min(data) & agitacio == 200)
+
+# Comprovem el resultat
+str(df_simpl)
+
+# Taula de quantes observacions tenim per bioreactor i medi
+table(df_simpl$bioreactor, df_simpl$medi)
+```
+
+És important visualitzar les dades abans de fer proves estadístiques. En aquest gràfic veiem la distribució del títol en funció del medi de cultiu, on cada bioreactor està representat amb un color diferent. Això ens permet detectar patrons generals, possibles diferències entre medis i també tendències associades a cada bioreactor.
+
+```{r}
+# Assignem colors: un color diferent per a cada bioreactor
+cols <- rainbow(nlevels(df_simpl$bioreactor))
+
+# Dibuixem el gràfic punt a punt
+plot(
+  # Medi a l’eix X, amb un petit "jitter" per evitar solapaments
+  jitter(as.numeric(df_simpl$medi), amount = 0.1),
+  df_simpl$titol,                                  # Títol a l’eix Y
+  col = cols[as.numeric(df_simpl$bioreactor)],     # Color segons bioreactor
+  pch = 19,                                        # Punt rodó ple
+  # Amaguem les etiquetes de l’eix X per posar-les manualment
+  xaxt = "n",
+  xlab = "Medi", ylab = "Títol (g/L)",
+  main = "Títol per medi i bioreactor"
+)
+
+# Afegim etiquetes als medis (x-axis)
+axis(1, at = 1:nlevels(df_simpl$medi), labels = levels(df_simpl$medi))
+
+#  Llegenda: la posem a una zona buida del gràfic (a baix a la dreta)
+legend(
+  x = 1.3, y = max(df_simpl$titol),  # coordenades
+  legend = levels(df_simpl$bioreactor),# Etiquetes: noms dels bioreactors
+  col = cols,                          # Colors corresponents
+  pch = 19,                            # Mateix símbol que als punts
+  cex = 0.8,                           # Mida de la llegenda
+  title = "Bioreactor"                 # Títol de la llegenda
+)
+
+```
+
+------------------------------------------------------------------------
+
+### Notació de les observacions
+
+Abans representàvem cada observació com $x_{j,k}$, on:\
+- $j = 1,\dots,G$ indicava els nivells de la variable categòrica (medi),\
+- $k = 1,\dots,n_j$ representava els valors individuals dins del grup $j$.
+
+Ara, com que hi ha una segona variable categòrica (subjecte), representem les observacions com $x_{ijk}$, on:\
+- $i = 1,\dots,S$ indica els subjectes (bioreactors),\
+- $j = 1,\dots,G$ indica els nivells de l’efecte (medi),\
+- $k = 1,\dots,n_{ij}$ són les repeticions del subjecte $i$ sota el medi $j$.\
+També hem eliminat les comes per simplificar la notació.
+
+Per visualitzar-ho, podem escriure les dades en una taula:
+
+$$
+\begin{array}{c|c|c|c|c}
+ & \text{Efecte } j=1 & \text{Efecte } j=2 & \phantom{\text{xxx}} \dots  \phantom{\text{xxx}} & \text{Efecte } j=G \\
+\hline
+\text{Subjecte } i=1 & x_{111},\, x_{112},\, \dots & x_{121},\, x_{122},\, \dots & \dots & x_{1G1},\, x_{1G2},\, \dots \\
+\text{Subjecte } i=2 & x_{211},\, x_{212},\, \dots & x_{221},\, x_{222},\, \dots & \dots & x_{2G1},\, x_{2G2},\, \dots \\
+\text{Subjecte } i=3 & x_{311},\, x_{312},\, \dots & x_{321},\, x_{322},\, \dots & \dots & x_{3G1},\, x_{3G2},\, \dots \\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+\text{Subjecte } i=S & x_{S11},\, x_{S12},\, \dots & x_{S21},\, x_{S22},\, \dots & \dots & x_{SG1},\, x_{SG2},\, \dots \\
+\end{array}
+$$
+
+Cada cel·la correspon a les observacions del subjecte $i$ sota el medi $j$, amb diverses repeticions $k$.
+
+Encara que donem la representació més general, en aquest capítol només considerarem el cas d'una sola repetició dins de cada combinació subjecte $\times$ condició, és a dir $n_{ij} = 1$).
+
+### Notació de les mitjanes
+
+Quan treballem amb dades que tenen diversos factors, és útil introduir una notació compacta per a les **mitjanes** utilitzant punts. Els punts indiquen que estem fent una mitjana sobre aquell índex.
+
+- **Mitjana global**  
+$$  \bar{x}_{\cdot\cdot\cdot} = \frac{1}{\sum_{i=1}^S \sum_{j=1}^G n_{ij}} \sum_{i=1}^S \sum_{j=1}^G \sum_{k=1}^{n_{ij}} x_{ijk} $$
+  Inclou totes les observacions, sense distingir ni bioreactor ni medi.
+
+- **Mitjana per efecte $j$**  
+$$ \bar{x}_{\cdot j \cdot} = \frac{1}{\sum_{i=1}^S n_{ij}} \sum_{i=1}^S \sum_{k=1}^{n_{ij}} x_{ijk} $$
+  Es fixa un medi $j$ i es fa la mitjana sobre tots els bioreactors.
+
+- **Mitjana per subjecte $i$**  
+$$ \bar{x}_{i\cdot\cdot} = \frac{1}{\sum_{j=1}^G n_{ij}} \sum_{j=1}^G \sum_{k=1}^{n_{ij}} x_{ijk} $$
+  Es fixa un bioreactor $i$ i es fa la mitjana de totes les seves observacions.
+
+- **Mitjana per subjecte $i$ i efecte $j$**  
+$$ \bar{x}_{ij\cdot} = \frac{1}{n_{ij}} \sum_{k=1}^{n_{ij}} x_{ijk} $$
+  Es fixa un bioreactor $i$ un medi $j$, i es fa la mitjana de les seves repeticions.
+
+---
+ 
+## Construcció del model ANOVA de mesures repetides
+
+Igual que a l’ANOVA d’un factor, la idea bàsica és separar la **variabilitat total** de les dades en diferents components. En el cas de les mesures repetides, aquesta variabilitat es pot atribuir a quatre fonts principals:\
+1. **L’efecte que volem estudiar** (en aquest cas, el medi de cultiu).\
+2. **Les diferències sistemàtiques entre subjectes** (en aquest cas, els bioreactors).\
+3. **La interacció subjecte $\times$ efecte**, que reflecteix com la resposta de cada subjecte varia de manera diferent entre condicions (variabilitat dins-subjecte).\
+4. **La variabilitat residual**, és a dir, aquella que no podem explicar amb cap dels dos factors anteriors.
+
+---
+
+### Variabilitat total
+
+La variabilitat total de les dades és la suma de les distàncies al quadrat entre cada observació i la mitjana global:
+
+$$ \operatorname{SS}_{\textrm{total}} = \sum_{i=1}^S \sum_{j=1}^G \sum_{k=1}^{n_{ij}} 
+\left(x_{ijk} - \bar{x}_{\cdot\cdot\cdot}\right)^2 $$
+
+Aquesta quantitat representa la dispersió completa de totes les dades.
+
+---
+
+### Variabilitat deguda a l’efecte
+
+La primera font de variabilitat és l’efecte que ens interessa provar (per exemple, el medi de cultiu).  
+En aquest cas mirem fins a quin punt les mitjanes de cada nivell de l’efecte ($\bar{x}_{\cdot j \cdot}$) s’allunyen de la mitjana global:
+
+$$ \operatorname{SS}_{\textrm{eff}} = \sum_{j=1}^G \left( \sum_{i=1}^S n_{ij} \right)
+\left(\bar{x}_{\cdot j \cdot} - \bar{x}_{\cdot\cdot\cdot}\right)^2 $$
+
+Aquesta és la $\operatorname{SS}_{\textrm{b}}$ de tota la vida: si les mitjanes dels medis són molt diferents entre elles, aquest terme serà gran.
+
+---
+
+### Variabilitat deguda als subjectes
+
+Els subjectes (bioreactors) també poden introduir diferències sistemàtiques. Pot ser que un bioreactor doni sempre valors més baixos o més alts que la resta, independentment del medi utilitzat.  
+Això ho capturem amb:
+
+$$ \operatorname{SS}_{\textrm{subj}} = \sum_{i=1}^S \left( \sum_{j=1}^G n_{ij} \right)
+\left(\bar{x}_{i\cdot\cdot} - \bar{x}_{\cdot\cdot\cdot}\right)^2 $$
+
+Aquest terme mesura com cada subjecte difereix de la mitjana global.
+
+---
+
+### Variabilitat dins-subjecte
+
+La suma de quadrats dins-subjecte o interacció subjecte $\times$ condició mesura com la resposta de cada subjecte varia de manera diferent entre condicions, és a dir, la part de la variabilitat que no s’explica ni pel subjecte ni per la condició per separat:
+
+$$ \operatorname{SS}_{\textrm{subj} \times \textrm{eff}} = 
+\sum_{i=1}^S \sum_{j=1}^G n_{ij} \left(\bar{x}_{ij\cdot} - \bar{x}_{i\cdot\cdot} - \bar{x}_{\cdot j \cdot} + \bar{x}_{\cdot\cdot\cdot}\right)^2 $$
+
+Com veurem més endavant, aquest terme és fonamental perquè constitueix el terme d’error en el contrast del factor dins-subjecte. Aquí no tenim una variància residual “independent”, perquè les observacions dins d’un subjecte estan correlacionades.
+L’única estimació d’error disponible per al factor dins-subjectes és la interacció subjecte $\times$ Condició, que mesura com els subjectes difereixen entre si en la resposta a les condicions.
+
+---
+
+### Variabilitat residual
+
+La suma de quadrats residual representa la variabilitat que queda un cop controlats els efectes de subjecte i condició:
+
+$$ \operatorname{SS}_{\textrm{res}} = \sum_{i=1}^S \sum_{j=1}^G \sum_{k=1}^{n_{ij}}
+\left(x_{ijk} - \bar{x}_{ij\cdot}\right)^2 $$
+
+En el cas d'una repetició per cel·la, com a l'exemple, aquest factor és igual a zero.
+
+---
+
+### Descomposició de la variabilitat
+
+En resum:
+
+$$\operatorname{SS}_{\textrm{total}} = \operatorname{SS}_{\textrm{eff}} + \operatorname{SS}_{\textrm{subj}} + \operatorname{SS}_{\textrm{subj} \times \textrm{eff}}+ \operatorname{SS}_{\textrm{res}} $$
+
+És a dir, tota la variabilitat de les dades pot ser separada en tres parts:\
+- la que es deu a l’efecte que volem estudiar,\
+- la que es deu a les diferències entre subjectes,\
+- i la variabilitat que queda sense explicar (residual).
+
+---
+
+### Graus de llibertat
+
+Cada suma de quadrats té associat un nombre de **graus de llibertat** ($\operatorname{Df}$), que indiquen quants valors poden variar lliurement un cop fixades les mitjanes corresponents.  
+
+En el cas de l’ANOVA de mesures repetides, els graus de llibertat són:
+
+- Per a l’efecte que ens interessa (medi):  
+  $$ \operatorname{Df}_{\textrm{eff}} = G - 1 $$
+
+- Per als subjectes (bioreactors):  
+  $$ \operatorname{Df}_{\textrm{subj}} = S - 1 $$
+
+- Per als residuals
+$$ \operatorname{Df}_{\textrm{res}} = SG(n_{ij}-1) $$
+
+
+Com que el total de dades té $N$ observacions, el nombre total de graus de llibertat és:  
+$$ \operatorname{Df}_{\textrm{total}} = N - 1 $$
+
+Per tant, els graus de llibertat de la part residual resulten de la diferència:  
+$$ \operatorname{Df}_{\textrm{subj} \times \textrm{eff}} = (S - 1)(G - 1) $$
+
+Aquesta descomposició ens assegura que:
+
+$$ \operatorname{Df}_{\textrm{total}} = 
+\operatorname{Df}_{\textrm{eff}} +
+\operatorname{Df}_{\textrm{subj}} +
+\operatorname{Df}_{\textrm{subj} \times \textrm{eff}} +
+\operatorname{Df}_{\textrm{res}} $$
+
+---
+
+### Estadístic de la prova
+
+El nostre objectiu és avaluar si les diferències degudes a l’efecte (`medi`) són més grans que la variabilitat residual un cop descomptat l'efecte que probablement provoca el subjecte (`bioreactor`).
+
+Per fer-ho, podem raonar de manera anàloga a l'ANOVA d'un factor i calcular l'estadístic com a:
+
+$$F = \frac{\operatorname{MS}_{\textrm{eff}}}{\operatorname{MS}_{\textrm{subj} \times \textrm{eff}}} =
+\frac{\frac{\operatorname{SS}_{\textrm{eff}}}{G-1}}{\frac{\operatorname{SS}_{\textrm{subj} \times \textrm{eff}}}{(S-1)(G-1)}}$$
+
+- Si $F$ és **gran**, vol dir que la variabilitat entre medis és molt més gran que la variabilitat residual → rebutgem $H_0$.  
+- Si $F$ és **petit**, vol dir que les diferències entre medis poden explicar-se pel soroll i no tenim prou evidència per rebutjar $H_0$.
+
+---
+
+## Diferència amb l’ANOVA d’un factor
+
+En un **ANOVA d’un factor**, la descomposició de la variabilitat és:
+
+$$\operatorname{SS}_{\textrm{total}} = \operatorname{SS}_{\textrm{b}} + \operatorname{SS}_{\textrm{w}}$$
+
+on:  
+- $\operatorname{SS}_{\textrm{b}}$ (*between*) mesura la variabilitat **entre grups** (és a dir, entre nivells del factor),  
+- $\operatorname{SS}_{\textrm{w}}$ (*within*) mesura la variabilitat **dins dels grups**, que fa de terme residual.  
+
+En aquest cas, l’estadístic de prova és:
+
+$$ F = \frac{\operatorname{MS}_{\textrm{b}}}{\operatorname{MS}_{\textrm{w}}} = \frac{\operatorname{SS}_{\textrm{b}}}{\operatorname{SS}_{\textrm{w}}}\frac{N-G}{G-1} $$
+
+---
+
+En canvi, en un **ANOVA de mesures repetides**, la descomposició és més fina:
+
+$$\operatorname{SS}_{\textrm{total}} = \operatorname{SS}_{\textrm{eff}} + \operatorname{SS}_{\textrm{subj}} + \operatorname{SS}_{\textrm{subj} \times \textrm{eff}} + \operatorname{SS}_{\textrm{res}} $$
+
+on:\
+- $\operatorname{SS}_{\textrm{eff}}$ correspon a la variabilitat de l’**efecte** que volem estudiar (per exemple, el medi de cultiu),\
+- $\operatorname{SS}_{\textrm{subj}}$ recull les diferències sistemàtiques entre **subjectes** (bioreactors),\
+- $\operatorname{SS}_{\textrm{subj} \times \textrm{eff}}$ és la mesura de com cada subjecte varia de manera diferent entre condicions,\
+- $\operatorname{SS}_{\textrm{res}}$ és la variabilitat **residual**, és a dir, la que queda després de treure tant l’efecte com les diferències entre subjectes.
+
+En aquest cas, l’estadístic és:
+
+$$ F = \frac{\operatorname{MS}_{\textrm{eff}}}{\operatorname{MS}_{\textrm{subj} \times \textrm{eff}}} = \frac{\operatorname{SS}_{\textrm{eff}}}{\operatorname{SS}_{\textrm{subj} \times \textrm{eff}}}\frac{(S-1)(G-1)}{G-1} $$
+
+
+---
+
+### Què canvia?
+
+La diferència principal està en **què considerem com a residual**:
+
+- En l’ANOVA d’un factor, els subjectes es tracten com si fossin aleatoris i la seva variabilitat queda barrejada dins del terme d’error. La variabilitat residual ($\operatorname{SS}_{\textrm{w}}$) inclou **tant les diferències entre subjectes com les diferències no explicades**.\
+- En l’ANOVA de mesures repetides, controlem aquesta font de variabilitat extraient-la del terme residual. Separem explícitament les diferències entre subjectes en un terme propi ($\operatorname{SS}_{\textrm{subj}}$), i només deixem a $\operatorname{SS}_{\textrm{subj} \times \textrm{eff}}$ la variabilitat que no s’explica ni pels subjectes ni per l’efecte.
+
+Encara que considerem el cas sense repeticions on $\operatorname{SS}_{\textrm{res}} = 0$, això té una conseqüència pràctica molt important:  
+
+$$
+\operatorname{SS}_{\textrm{subj} \times \textrm{eff}} \;<\; \operatorname{SS}_{\textrm{w}}
+$$
+
+i, per tant, com que el denominador del quocient $F$ és més petit, l’estadístic de prova tendeix a ser **més gran**.  
+
+Això fa que la prova sigui **més sensible**: augmenta la capacitat de detectar diferències significatives entre nivells de l’efecte, perquè no confonem les diferències entre subjectes amb el “soroll experimental”.
+
+En resum: l’ANOVA de mesures repetides permet aïllar millor l’efecte d’interès i reduir l’error, fent que la comparació sigui més precisa.
+
+---
+
+## Exemple pràctic amb R
+
+Per entendre millor com funciona l’ANOVA de mesures repetides, apliquem-lo directament al nostre dataset `df_tots`.  
+
+Recordem que disposem de les variables:  
+- **medi** (efecte que volem estudiar),  
+- **bioreactor** (subjecte, ja que cada bioreactor es mesura en tots els medis),  
+- **titol** (variable resposta, en g/L).  
+
+Podem fer l’ANOVA de mesures repetides amb la funció `aov()`, indicant tant l’efecte com el subjecte:
+
+```{r, eval=FALSE}
+anova_rm <- aov(obs ~ efecte + Error(subjecte/efecte), data = df)
+```
+Amb la expressió `Error(subjecte/efecte)` li diem a R que no tracti totes les observacions com independents, sinó que reconegui que estan agrupades per subjecte i que la variabilitat de la resposta pot tenir una component comuna dins de cada subjecte.
+
+En el nostre cas, correspon a:
+
+```{r}
+anova_rm <- aov(titol ~ medi + Error(bioreactor/medi), data = df_simpl)
+summary(anova_rm)
+```
+
+Tipicament, la sortida de `summary()` inclou dos (o tres) blocs:\
+- `Error: bioreactor`: informa la variabilitat **entre subjectes** (no és el contrast que t’interessa per al medi).\
+- `Error: bioreactor:medi`: aquí apareix la fila **`medi`** amb els valors `Df`, `Sum Sq`, `Mean Sq`, `F value` i `Pr(>F)`. Aquest és el **contrast principal**: prova si hi ha diferències entre nivells de *medi* controlant la variabilitat entre bioreactors.
+
+**Nota**: Si tinguéssim repeticions dins de cada combinació subjecte $\times$ condició ($n_{ij}\neq 1$), apareixeria un nou bloc en la sortida de l’ANOVA, sovint anomenat `Error: Within`. Aquest bloc recull la variabilitat entre repeticions dins de cada cel·la (és a dir, dins de cada combinació de subjecte i condició).
+
+Veiem que el valor $p > 0.05$, no podem rebutjar la hipòtesi nul·la: amb les restriccions de data i agitació, tenint en compte possibles diferències entre els bioreactors, els medis no són significativament diferents.
+
+### Comparacions post-hoc i mida de l’efecte
+
+I si hi hagués diferències significatives? Com ja vam veure per a l’ANOVA d’un factor:
+
+- Caldria fer proves post-hoc per veure quins medis són diferents entre ells:
+```{r, eval=FALSE}
+# Comparacions post-hoc (si hi hagués significació)
+pairwise.t.test(df_simpl$titol, df_simpl$medi,
+                 paired = TRUE, p.adjust.method = "bonferroni")
+```
+on hem indicat `paired=TRUE` per tenir en compte que les dades són aparellades (repeated measures)
+
+- També seria recomanable calcular una mesura de la mida de l’efecte (per exemple, $\eta_p^2$ parcial o $d$ de Cohen per comparacions entre parelles).
+```{r, eval=FALSE}
+# Mesura de l'efecte (requereix el paquet 'effectsize')
+# install.packages("effectsize")
+library(effectsize)
+eta_squared(anova_rm, partial = TRUE)
+```
+
+on aquesta vegada hem indicat `partial = TRUE` perquè en un disseny amb més d’un factor (com és el cas de les mesures repetides), volem que l’$\eta_p^2$ calculi la proporció de variància explicada pel factor concret, controlant per la resta de factors i fonts de variabilitat del model.
+
+---
+
+### Validació dels suposits
+
+Abans d’interpretar els resultats és important comprovar que es compleixen els supòsits bàsics del model:\
+- Normalitat dels errors.\
+- Homogeneïtat de la variància.\
+- Esfericitat.
+
+En el cas de les mesures repetides, el supòsit d'independència de les observacions no es compleix. Justament per això no podem aplicar un ANOVA factorial “clàssic” i cal especificar el model com a ANOVA de mesures repetides, que té en compte aquesta dependència de les dades.
+
+A diferència de l’ANOVA clàssic, l’ANOVA de mesures repetides introdueix el **supòsit d’esfericitat**: les diferències entre les variàncies de totes les possibles combinacions de nivells dins-subjecte han de ser iguals. Aquest supòsit normalment es comprova amb el **test de Mauchly**. 
+
+En el cas específic que hem considerat — amb una sola observació per cel·la subjecte × condició — hi ha algunes limitacions:\
+- No podem comprovar la normalitat dins de cada cel·la, perquè només hi ha un valor per combinació subjecte-condició.\
+- No podem calcular la variància dins de cada cel·la.\
+- Tampoc podem calcular la matriu de covariàncies completa i, per tant, no podem verificar l’esfericitat.
+
+---
+
+Tot i així, per a la normalitat, podem treballar amb els **residus** (*residuals*) del model. Els residus són les diferències entre les observacions i el valor ajustat pel model (és a dir, la mitjana estimada de la cel·la). Si el supòsit de normalitat és raonable, aquests residus haurien de seguir aproximadament una distribució normal.
+
+Podem comprovar-ho amb el test de Shapiro-Wilk:
+```{r}
+res <- anova_rm$`bioreactor:medi`$residuals
+
+# Test de Shapiro-Wilk
+shapiro.test(res)
+```
+
+També és recomanable verificar-ho gràficament amb un **Q-Q plot** (*Quantile–Quantile plot*). Aquest gràfic serveix per comprovar si les dades segueixen una distribució teòrica, típicament la normal. A l’eix $x$ hi ha els quantils de la distribució teòrica (p. ex. normal). A l’eix $y$ hi ha els quantils de les dades observades. Si els punts cauen aproximadament sobre la recta diagonal, vol dir que les dades són compatibles amb la distribució teòrica.
+
+En el nostre cas, pels residus:
+
+```{r}
+# Gràfic Q-Q
+qqnorm(res)
+qqline(res, col = "red")
+```
+
+Com el valor $p$ del Shapiro-Wilk és $> 0{,}05$ i el Q-Q plot mostra els punts propers a la recta, podem assumir que el supòsit de normalitat és raonable.
+
+---
+
+Respecte a la homogeneïtat de variàncies, en aquest cas només podem contrastar si les variàncies del títol entre els diferents medis — agrupant tots els bioreactors — són aproximadament iguals.
+
+```{r}
+library(car)
+leveneTest(titol ~ medi, data = df_simpl)
+```
+
+Si el valor $p$ del test de Levene és major que 0.05, podem assumir que les variàncies entre medis són homogènies. Si és menor que 0.05, voldrà dir que l’assumpció d’homogeneïtat es trenca i hauríem de considerar alternatives més robustes.
+
+---
+
+Respecte a l’esfericitat, recordem que aquest supòsit és específic dels dissenys de mesures repetides. Implica que les variàncies de les diferències entre tots els possibles parells de nivells dins-subjecte han de ser iguals. A la pràctica, es comprova amb el test de Mauchly:\
+- Hipòtesi nul·la $H_0$: la matriu de covariàncies $\Sigma$ dels nivells dins-subjecte és esfèrica (totes les variàncies de les diferències són iguals).\
+- Hipòtesi alternativa $H_1$: $\Sigma$ no és esfèrica.
+
+En el nostre cas, com que només tenim una observació per combinació subjecte $\times$ condició, no podem calcular la matriu de covariàncies completa i, per tant, no és possible comprovar l’esfericitat. Amb dades més riques (múltiples repeticions dins de cada cel·la) sí que es podria avaluar i, si l’esfericitat no es compleix, aplicar correccions com la de Greenhouse–Geisser o la de Huynh–Feldt, que ajusten els graus de llibertat de la prova per obtenir conclusions més fiables.
+
+Amb R, podem fer servir la funció `ezANOVA()`:
+
+```{r, eval=FALSE}
+# Paquet necessari
+# install.packages("ez")
+library(ez)
+
+# Fem un ANOVA de mesures repetides
+anova_ez <- ezANOVA(
+  data = df,
+  dv = obs,           # variable dependent
+  wid = subjecte,     # subjectes
+  within = efecte,    # factor dins-subjecte
+  detailed = TRUE
+)
+
+anova_ez
+```
+
+`ezANOVA()` fa l’ANOVA de mesures repetides (un o més factors dins-subjecte). Quan detecta factors dins-subjecte amb $\geq 3$ nivells, inclou automàticament el test de Mauchly per comprovar l’esfericitat. Si el test surt significatiu ($p < 0.05$, es viola l’esfericitat), llavors també mostra les correccions de Greenhouse–Geisser i Huynh–Feldt.
+
+
+---
+
+## I si tinguéssim més d’una repetició per cel·la?
+
+Fins ara, per simplificar l’explicació, hem fixat el dia i el nivell d’agitació (`df_simpl`), de manera que cada combinació bioreactor × medi només tenia una observació ($n_{ij}=1$). Això ens ha permès centrar-nos en la lògica del model, però també ens ha limitat a l’hora de validar els supòsits: no podíem comprovar la normalitat ni l’homogeneïtat *dins de cada cel·la*, ni calcular la matriu de covariàncies necessària per al test de Mauchly.
+
+Aprofitem que el dataset original (`df_tots`) sí que conté diverses mesures per bioreactor i medi: en comptes de fixar dia i agitació, fixem només l’agitació i deixem variar el dia. Així, cada bioreactor queda mesurat diversos dies sota cada medi, i obtenim $n_{ij}>1$ repeticions per cel·la.
+
+```{r}
+# Ara només fixem l'agitació;
+# deixem variar el dia -> diverses rèpliques per bioreactor×medi
+df_rep <- subset(df_tots, agitacio == 200)
+
+# Quantes observacions tenim ara per bioreactor i medi?
+table(df_rep$bioreactor, df_rep$medi)
+```
+
+### El bloc `Error: Within`
+
+Quan ajustem el model amb aquestes dades, apareix el bloc que ja havíem anunciat:
+
+```{r}
+anova_rm2 <- aov(titol ~ medi + Error(bioreactor/medi), data = df_rep)
+summary(anova_rm2)
+```
+
+Ara la sortida de `summary()` inclou un tercer bloc, `Error: Within`, a més dels dos que ja coneixíem (`Error: bioreactor` i `Error: bioreactor:medi`). Aquest nou bloc recull la **variabilitat residual entre repeticions dins de cada cel·la** subjecte × condició: és a dir, la part de la variabilitat que ni el bioreactor ni el medi expliquen, i que abans (amb $n_{ij}=1$) no teníem manera de separar de la resta. És una font de soroll diferent de la variabilitat entre bioreactors (`Error: bioreactor`): mentre aquesta reflecteix diferències sistemàtiques entre subjectes, la variabilitat *within* reflecteix soroll de mesura o variabilitat dia a dia dins d’un mateix bioreactor i medi.
+
+### Ara sí: validació dels supòsits cel·la per cel·la
+
+Amb repeticions per cel·la, ja podem fer les comprovacions que abans ens faltaven.
+
+**Normalitat dins de cada cel·la:**
+```{r}
+by(df_rep$titol, list(df_rep$bioreactor, df_rep$medi), shapiro.test)
+```
+
+**Homogeneïtat de variàncies** (ara amb prou dades per cel·la, encara agrupant per medi):
+```{r}
+library(car)
+leveneTest(titol ~ medi, data = df_rep)
+```
+
+**Esfericitat:** aquí cal una petita puntualització respecte al que hem dit fins ara. El test de Mauchly no necessita $n_{ij}>1$ per se: el que necessita és prou subjectes (bioreactors) mesurats sota, com a mínim, tres nivells del factor dins-subjecte (`medi` en té tres), per poder estimar la matriu de covariàncies entre nivells. Amb el nostre `df_simpl` original ($n_{ij}=1$) ja hi havia, en principi, prou informació per intentar-ho — el que realment ens faltava allà eren la normalitat i l’homogeneïtat *dins de cada cel·la*, que sí que requereixen diverses observacions per combinació subjecte × condició. Amb `df_rep` podem calcular-ho tot alhora:
+
+```{r, eval=FALSE}
+library(ez)
+
+anova_ez2 <- ezANOVA(
+  data = df_rep,
+  dv = titol,
+  wid = bioreactor,
+  within = medi,
+  detailed = TRUE
+)
+
+anova_ez2
+```
+
+Si el test de Mauchly resulta significatiu ($p<0.05$), l’esfericitat es viola i cal recórrer a les correccions de Greenhouse–Geisser o Huynh–Feldt que `ezANOVA()` ja proporciona automàticament.
+

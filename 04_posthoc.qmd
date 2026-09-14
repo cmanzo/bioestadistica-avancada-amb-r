@@ -1,0 +1,183 @@
+---
+title: "Proves post-hoc"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+```{r, echo=FALSE, results="hide"}
+df_tots <- read.csv("datasets/bioreact/bioreact_tots.csv")
+df_tots$medi<-factor(df_tots$medi)
+```
+
+En aquest capítol veurem què fer quan la prova ANOVA mostra diferències significatives entre grups. L’ANOVA ens indica que, de manera global, almenys un grup es comporta de manera diferent, però no ens diu quin. Per això necessitem proves addicionals, anomenades **proves post-hoc**, que ens permetin identificar quins grups difereixen entre si, mantenint el control sobre l’error estadístic.
+
+## Prova ANOVA mostra diferències significatives: i ara què?
+
+Suposem que, com en el nostre exemple anterior, la prova ANOVA ens permet rebutjar la hipòtesi nul·la. Això vol dir que almenys una de les mitjanes dels grups és diferent de la resta.
+
+En recerca científica, aquest resultat és rellevant: podria indicar que un medi de cultiu és més eficaç que els altres per al creixement cel·lular, que un medicament funciona millor que una alternativa o que una tècnica d’expressió gènica produeix més proteïna.
+
+Tanmateix, l’ANOVA només ens diu que hi ha diferències globals, però no ens diu on són aquestes diferències. Per això necessitem una **prova post-hoc** (del llatí *post hoc*, “després del fet”): una anàlisi que s’aplica quan ja sabem que les diferències globals existeixen i volem identificar quins grups en concret són diferents.
+
+------------------------------------------------------------------------
+
+## Comparacions multiples amb proves *t* 
+Una primera idea podria ser fer proves *t* per a totes les parelles de grups. Però ja hem vist que això incrementa massa la probabilitat de falsos positius. Tot i així, val la pena fer l’exercici per veure què obtindríem:
+
+```{r}
+# Comparacions per parelles sense correcció (no recomanat)
+pairwise.t.test(df_tots$titol, df_tots$medi, p.adjust.method = "none")
+```
+
+El resultat és una taula de comparacions entre parelles de medis. Cada cel·la mostra el valor $p$ associat a la prova *t* entre dos medis. Per exemple, si el valor $p$ és inferior a 0.05, conclouríem (sense correcció) que hi ha una diferència significativa entre aquests dos grups.
+
+En el nostre cas, veiem que hi ha dues comparacions amb $p < 0.05$. Per entendre millor aquest resultat, podem fer un boxplot de la distribució del títol en funció del medi:
+
+```{r}
+boxplot(df_tots$titol ~ df_tots$medi,
+        col = "lightblue",
+        main = "Distribució del títol segons el medi de cultiu",
+        xlab = "Medi de cultiu",
+        ylab = "Títol (g/L)",
+        ylim = c(0,20)
+)
+```
+
+El gràfic ens mostra clarament les diferències i la dispersió dins de cada medi. Si combinem la informació visual amb les proves *t*, podríem interpretar que tant el medi M2 com el M3 produeixen un títol més alt que el medi M1.
+
+Ara bé, ens ho podem creure sense més? Aquí és on entra el problema: fer múltiples proves *t* augmenta el risc de falsos positius. Per tant, tot i que el resultat sigui suggestiu, no podem donar-lo per bo sense aplicar correccions que redueixin aquest risc.
+
+Aquestes **correccions** ajusten els valors $p$ obtinguts en comparacions múltiples per mantenir el risc global d’error de tipus I (falsos positius) sota control. N’existeixen diverses estratègies, cadascuna amb avantatges i inconvenients.
+
+------------------------------------------------------------------------
+
+### Correcció de Bonferroni
+
+La primera correcció que podem aplicar és la **correcció de Bonferroni**, probablement la més senzilla i coneguda.
+
+Hem vist que si fem múltiples proves *t* amb un nivell de significació $\alpha$, el nivell de significació global (family-wise error rate, $\alpha_{\mathrm{FW}}$) creix ràpidament i pot superar de molt el valor que voldríem controlar.
+
+El nostre objectiu és mantenir $\alpha_{\mathrm{FW}}$ al voltant de $0.05$. Tot i així, només podem actuar sobre el nivell de significació de cada prova individual, $\alpha$. La idea de Bonferroni és simple: reduir $\alpha$ dividint-lo pel nombre de comparacions $N_P$.
+
+En altres paraules:
+
+$$\textrm{Rebutjem }H_{0} \textrm{ si}: p<\frac{\alpha_{\mathrm{FW}}}{N_P}$$
+
+De manera equivalent, podem multiplicar el valor $p$ per $N_P$ i comparar-lo amb $\alpha_{\mathrm{FW}}$:
+
+$$\textrm{Rebutjem }H_{0} \textrm{ si}: p\times N_P<\alpha_{\mathrm{FW}}$$ On $N_P = \binom{G}{2}$ és el nombre de comparacions per parelles que fem si tenim $G$ grups.
+
+En R, la correcció de Bonferroni es pot aplicar directament:
+
+```{r}
+# Comparacions per parelles sense correcció (no recomanat globalment)
+pairwise.t.test(df_tots$titol, df_tots$medi, p.adjust.method = "bonf")
+```
+
+Aquesta funció retorna els valors $p$ ja corregits. En el nostre cas, representen els valors $p$ originals multiplicats per $N_P = 3$. Així els podem comparar directament amb $\alpha_{\mathrm{FW}} = 0.05$.
+
+El resultat confirma que hi ha diferències entre M3 i M1, però no entre M2 i M1, que prèviament semblaven significatives només perquè no havíem controlat bé l’error de tipus I.
+
+Cal remarcar que la correcció de Bonferroni és **molt conservadora**: tendeix a reduir falsos positius, però al preu d’augmentar falsos negatius. En altres paraules, és una prova “prudent” que prefereix no detectar diferències abans que arriscar-se a trobar-ne de falses. Això pot donar lloc a situacions paradoxals, en què l’ANOVA indica que hi ha diferències globals però cap comparació per parelles surt significativa amb Bonferroni.
+
+------------------------------------------------------------------------
+
+### Correcció de Holm (Holm-Bonferroni)
+
+La **correcció de Holm** (també anomenada Holm-Bonferroni) és una alternativa una mica més refinada i menys conservadora que la de Bonferroni.
+
+El principi és similar: controlar l’error global $\alpha_{\mathrm{FW}}$, però en comptes d’aplicar la mateixa correcció a tots els valors $p$, Holm ajusta de manera seqüencial.
+
+El procediment és el següent:
+
+1.  Ordenem totes les comparacions pel seu valor $p$ original (del més petit al més gran).\
+2.  Al valor $p$ més petit li apliquem la mateixa correcció que Bonferroni: $p \times N_P$, on $N_P$ és el nombre total de comparacions.\
+3.  Al segon valor $p$, li multipliquem per $N_P - 1$.\
+4.  Al tercer, per $N_P - 2$, i així successivament fins que arribem a l’últim.\
+
+Formalment:
+
+$$\textrm{Rebutjem }H_{0} \textrm{ si}: p_{(i)}\times (N_P-i+1)<\alpha_{\mathrm{FW}}$$
+
+on $p_{(i)}$ és el valor $p$ en la posició $i$ dins de l’ordre creixent.
+
+En R, la podem aplicar directament:
+
+```{r}
+# Comparacions per parelles sense correcció (no recomanat globalment)
+pairwise.t.test(df_tots$titol, df_tots$medi, p.adjust.method = "holm")
+```
+
+A diferència de Bonferroni, els valors $p$ corregits no són tots igualment “inflats”, sinó que els més petits conserven més poder estadístic. Això fa que Holm sigui menys conservadora, i sovint detecti diferències que Bonferroni no troba, tot mantenint l’error global controlat.
+
+En el nostre exemple, veiem que les parelles M1–M2 i M2–M3 tenen valors $p$ una mica diferents dels obtinguts amb Bonferroni. Tot i que el $p$ de M1–M2 és més petit, continua sent $>0.05$, i per tant no podem concloure que hi hagi diferències significatives entre aquests dos medis.
+
+En resum: Holm redueix el risc de falsos negatius respecte a Bonferroni, però encara és una correcció conservadora.
+
+------------------------------------------------------------------------
+
+## Tukey HSD
+
+Les correccions de Bonferroni i Holm es basen en fer moltes proves *t* entre parelles i ajustar els valors $p$. Una alternativa més elegant i coherent amb l’esperit de l’ANOVA és la **prova HSD de Tukey** (*Honest Significant Differences*).
+
+La idea de Tukey és aprofitar la variància residual comuna estimada a l’ANOVA ($\operatorname{MS}_w$) per fer totes les comparacions múltiples alhora. Això li dona més potència estadística i manté el control sobre l’error de tipus I.
+
+La prova calcula, per a cada parella de mitjanes $i, j$, l’estadístic:
+
+$$ q_{i,j} = \frac{|\bar{x}_i-\bar{x}_j|}{\sqrt{\frac{\operatorname{MS}_{\mathrm{w}}}{n_h}}} $$
+
+on $n_h$ és la mida mostral “harmònica” de les dues mostres:
+
+$$ n_h = \frac{2}{\frac{1}{n_i} + \frac{1}{n_j}}$$
+
+Si $q_{i,j}$ supera un valor crític (obtingut de la distribució de Studentized range), diem que les dues mitjanes són significativament diferents.
+
+En R, la podem aplicar directament sobre el model ANOVA:
+
+```{r, echo=FALSE, results='hide'}
+anova_bioreact <- aov(df_tots$titol ~ df_tots$medi)
+```
+
+```{r}
+TukeyHSD(anova_bioreact)
+```
+
+Això ens retorna una taula amb:
+
+`diff`: diferència de mitjanes entre grups,\
+`lwr` i `upr`: límits inferior i superior de l’interval de confiança,\
+`p adj`: el valor $p$ ajustat.
+
+En el nostre exemple, veiem que només la comparació M1–M3 dona un valor $p$ significatiu: per tant, el medi M3 és significativament millor que el M1, mentre que les diferències amb M2 no són prou fortes.
+
+Un avantatge addicional és que Tukey es pot visualitzar fàcilment:
+
+```{r}
+HSD_bioreact <- TukeyHSD(anova_bioreact)
+plot(HSD_bioreact)
+```
+
+El gràfic mostra cada diferència de mitjanes amb el seu interval de confiança. Si l’interval no inclou el zero, vol dir que hi ha una diferència significativa. És una manera molt intuïtiva d’interpretar els resultats i d’identificar quins grups es distingeixen realment.
+
+------------------------------------------------------------------------
+
+## Dues preguntes típiques
+
+1.  Com puc escollir quina prova post-hoc fer?\
+-   Si tens pocs grups (3–4) i només vols comparar algunes parelles concretes, qualsevol prova (Bonferroni, Holm o Tukey) pot ser suficient.\
+-   Si tens molts grups, les proves massa conservadores (com Bonferroni) poden perdre potència i no detectar diferències reals. En aquest cas, Holm o Tukey són opcions més adequades.\
+-   Tukey HSD és la prova més habitual quan es volen avaluar totes les comparacions parell a parell, mantenint el control de l’error global.\
+-   Bonferroni és molt senzilla i segura, però excessivament conservadora. Pot ser útil si hi ha poques comparacions i es vol minimitzar al màxim el risc de falsos positius (per exemple, en estudis clínics).\
+-   Holm (Holm-Bonferroni) és un bon compromís: manté el control de l’error com Bonferroni, però amb més potència estadística.
+
+2.  Per què cal fer primer l’ANOVA? No puc aplicar directament les proves *t* amb correcció?\
+-   L’ANOVA serveix per comprovar si hi ha diferències globals entre les mitjanes. Només si hi ha evidència d’aquestes diferències té sentit aplicar les proves post-hoc.\
+-   Les correccions com Bonferroni o Holm redueixen el risc d’error de tipus I en comparacions múltiples, però acostumen a ser conservadores.\
+-   L’ANOVA és més potent perquè fa un contrast únic sobre totes les mitjanes alhora, utilitzant una estimació comuna de la variància residual. Les proves post-hoc com Tukey HSD parteixen d’aquesta mateixa variància comuna, en lloc de fer moltes proves *t* independents.\
+-   A més, l’ANOVA es pot ampliar fàcilment a dissenys més complexos (two-way, mesures repetides, interaccions), cosa que les proves *t* individuals no permeten.

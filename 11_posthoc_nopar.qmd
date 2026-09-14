@@ -1,0 +1,223 @@
+---
+title: "Comparacions múltiples amb proves no paramètriques"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+```{r, echo=FALSE, results="hide"}
+# ------------------------------------------------------------
+# Exemple ordinal: Kruskal–Wallis amb efectes significatius
+# ------------------------------------------------------------
+set.seed(123)
+
+# Escala ordinal (0–3) definida com a factor ordenat
+nivells <- c("nul","feble","moderat","fort")
+
+# Disseny: 3 grups (independents), n per grup
+grups <- c("Control","Promotor_A","Promotor_B")
+n_per_grp <- 30
+
+# Probabilitats per a cada grup (diferents perfils d'intensitat)
+# Control: majoria nul/feble
+p_ctrl <- c(0.45, 0.35, 0.15, 0.05)
+
+# Promotor A: distribuït cap al mig (feble/moderat)
+p_A    <- c(0.10, 0.25, 0.4, 0.25)
+
+# Promotor B: desplaçat cap a intensitats altes
+p_B    <- c(0.05, 0.15, 0.35, 0.45)
+
+# Mostreig ordinal per a cada grup
+s_ctrl <- factor(sample(nivells, n_per_grp, replace = TRUE, prob = p_ctrl),
+levels = nivells, ordered = TRUE)
+s_A    <- factor(sample(nivells, n_per_grp, replace = TRUE, prob = p_A),
+levels = nivells, ordered = TRUE)
+s_B    <- factor(sample(nivells, n_per_grp, replace = TRUE, prob = p_B),
+levels = nivells, ordered = TRUE)
+
+# Data frame final
+df <- data.frame(
+constr  = factor(rep(grups, each = n_per_grp), levels = grups), # manté l'ordre
+expr_GFP = c(s_ctrl, s_A, s_B)
+)
+
+# Guardem CSV
+fname <- "datasets/promotor/GFP.csv"
+write.csv(df[,c("constr","expr_GFP")], fname, row.names = FALSE)
+```
+
+Quan la prova de Kruskal–Wallis resulta significativa, sabem que almenys un grup difereix dels altres, però no quins.
+Per identificar-los —igual que vam fer amb l’ANOVA— cal aplicar **proves post-hoc**, comparant els grups de manera parell a parell (*pairwise comparisons*).
+
+De la mateixa manera que en les proves paramètriques vam utilitzar proves *t* ajustant els valors $p$ per compensar els múltiples contrastos, en el cas de Kruskal–Wallis, com que treballa amb rangs, el post-hoc es basa en proves de Mann–Whitney, també amb ajust dels valors $p$ per controlar l’error de tipus I associat a les comparacions múltiples.
+
+---
+
+## Exemple: Intensitat d’expressió GFP segons promotor
+
+Comencem amb un exemple. En un cribratge de promotors, tres construccions (Control, Promotor A i Promotor B) s’avaluen per la **intensitat d’expressió GFP** observada al microscopi, puntuada ordinalment per tècnics com: nul, feble, moderat o fort.
+
+Les dades es guarden al fitxer `GFP.csv`. Carreguem-les i fem una primera inspecció:
+
+```{r}
+# Carreguem el fitxer i revisem el contingut
+df <- read.csv("datasets/promotor/GFP.csv")
+str(df)
+```
+
+Veiem que el dataframe conté dues columnes de tipus `chr` (*character*). Podem inspeccionar-les amb una taula de contingència:
+
+```{r}
+table(df$constr,df$expr_GFP)
+```
+
+La variable `expr_GFP` s'expressa com a **escala ordenal** amb els nivells: nul, feble, moderat, fort.
+
+Per verificar si les construccions produeixen nivells d’expressió diferents, podem aplicar una prova de Kruskal–Wallis. Primer, cal convertir la variable categòrica que identifica el grup experimental a un factor:
+
+```{r}
+df$constr <- factor(df$constr)
+```
+
+A més, en aquest cas, també necessitem transformar la variable `expr_GFP` en una variable numèrica que reflecteixi l’ordre dels nivells.
+Per fer-ho, definim explícitament l’ordre correcte dels nivells i després la convertim primer a factor ordenat i finalment a numèrica:
+
+```{r}
+nivells <- c("nul", "feble", "moderat", "fort")
+df$expr_GFP <- factor(df$expr_GFP, levels = nivells, ordered = TRUE)
+df$expr_GFP_num <- as.numeric(df$expr_GFP)
+```
+
+Aquesta transformació crea la nova columna numèrica `df$expr_GFP_num`, que conserva l’ordre de la intensitat d’expressió:
+
+```{r}
+table(df$constr,df$expr_GFP_num)
+```
+on 1=nul, 2=feble, 3=moderat, 4=fort. Això ens permet representar les dades en un diagrama de caixes:
+
+```{r}
+boxplot(expr_GFP_num ~ constr, data = df,
+main = "Escala ordinal (1-4)",
+ylab = "Intensitat GFP",
+xlab = "Construcció")
+```
+---
+
+### Prova de Kruskal-Wallis
+
+Podem fer la prova de Kruskal-Wallis:
+
+```{r}
+# Kruskal–Wallis
+kw <- kruskal.test(expr_GFP_num ~ constr, data = df)
+kw
+```
+
+El valor $p$ indica que hi ha diferències significatives entre almenys dos promotors.
+
+---
+
+### Mida de l’efecte: $\epsilon^2$
+
+A més del valor $p$, és informatiu calcular la mida de l’efecte, que quantifica quina proporció de la variabilitat total dels rangs pot atribuir-se al factor.
+En el cas de Kruskal–Wallis, s’utilitza l’estadístic $\epsilon^2$ (epsilon quadrat), anàleg no paramètric de $\eta^2$.
+
+$$ \epsilon^2 = \frac{H-G+1}{N-G}$$
+on $H$ és l’estadístic de Kruskal–Wallis, $G$ és el nombre de grups i $N$ és el nombre total d’observacions. 
+
+El $\epsilon^2$ es pot interpretar de manera orientativa amb les següents convencions generals:\
+- $\epsilon^2 < 0.01$: efecte negligible\
+- $0.01 < \epsilon^2 < 0.08$: efecte petit\
+- $0.08 < \epsilon^2 < 0.26$: efecte mitjà\
+- $\epsilon^2 > 0.26$: efecte gran
+
+Altres autors proposen valors lleugerament més baixos per a efectes mitjans i grans. En general, en contextos biològics, un valor al voltant de $\epsilon^2 \gtrsim 0.08$ ja pot considerar-se rellevant.
+
+Podem calcular-ho en R:
+
+```{r}
+# Mida d’efecte (epsilon^2 de KW): (H - G + 1) / (N - G)
+H <- kw$statistic[[1]]
+G <- length(levels(df$constr))
+N <- nrow(df)
+epsilon2 <- (H - G + 1) / (N - G)
+epsilon2
+```
+
+En el nostre exemple, $\epsilon^2 \approx 0.23$, cosa que correspon a un efecte mitjà segons les convencions habituals.
+
+---
+
+## Comparacions post-hoc
+
+Quan la prova de Kruskal–Wallis resulta significativa, sabem que almenys un grup difereix dels altres, però no sabem quin o quins. Per determinar entre quins grups hi ha diferències significatives, cal aplicar **proves post-hoc** de comparació parell-a-parell (*pairwise comparisons*).
+
+---
+
+### Prova post-hoc de Wilcoxon parell-a-parell
+
+Si seguim exactament el mateix esquema que en les proves paramètriques, podem fer comparacions parell a parell utilitzant l’equivalent no paramètric de la prova *t*: la **prova de Mann–Whitney (o Wilcoxon rank-sum)**.
+
+R inclou la funció `pairwise.wilcox.test()`, que calcula totes les comparacions per parelles entre grups i ajusta els valors $p$ segons el mètode escollit (per defecte, Holm).
+
+```{r}
+# Post-hoc: Wilcoxon (Mann–Whitney) parells amb correcció de Holm
+pw <- pairwise.wilcox.test(df$expr_GFP_num, df$constr,
+                            p.adjust.method = "holm", exact = FALSE)
+pw$p.value
+```
+
+L’argument `p.adjust.method` pot prendre diversos valors ("holm", "bonferroni", "BH", etc.), que determinen el mètode d’ajust del valor $p$.
+També especifiquem `exact = FALSE`, ja que hi ha empats en els valors i, per tant, no és possible calcular el valor $p$ exacte; en aquest cas s’utilitza l’aproximació normal.
+
+Les dades mostren diferències significatives entre els dos promotors i el control, mentre que la diferència entre els dos promotors és menor i no significativa.
+
+
+### Prova de Dunn
+
+Una alternativa més específica per a dades no paramètriques és la **prova de Dunn**, especialment recomanable per fer comparacions parell-a-parell després d’un resultat global significatiu.
+Aquesta prova utilitza la mateixa lògica de rangs que la de Kruskal–Wallis i segueix una filosofia semblant a la prova de Tukey, ja que compara les mitjanes de rangs estandarditzades entre grups.
+
+Per a cada parella de grups $i$ i $j$, la prova calcula la diferència entre les mitjanes de rangs $\bar{R}_i - \bar{R}_j$ i la seva desviació estàndard esperada sota la hipòtesi nul·la (que tots els grups tenen la mateixa distribució) $\mathrm{SE}_{ij}$.
+
+A partir d’això, s’obté un estadístic $Z$, definit com:
+
+$$Z_{ij} = \frac{\bar{R}_i - \bar{R}_j}{\mathrm{SE}_{ij}}$$
+
+Aquest estadístic es compara amb la distribució normal estàndard, i a partir d’aquí es calcula el valor $p$, que indica si les dues distribucions són significativament diferents.
+
+El càlcul de $\mathrm{SE}_{ij}$ prové de la variància total dels rangs sota la hipòtesi nul·la del test de Kruskal–Wallis. Si tenim $G$ grups amb mides $n_1, n_2, \dots, n_G$ i un total de $N = n_1 + n_2 + \dots + n_G$ observacions, la desviació estàndard teòrica de la diferència de rangs entre els grups $i$ i $j$ és:
+
+$$\mathrm{SE}_{ij} = \sqrt{\frac{N(N+1)}{12}\bigg(\frac{1}{n_i}+\frac{1}{n_j}\bigg)C }$$
+on el factor $C$ és una correcció per empats, definida com:
+
+$$C = 1 - \frac{\sum_t (t^3 - t)}{N^3-N}$$
+
+La prova de Dunn està implementada al paquet `FSA`:
+
+```{r}
+#install.packages('FSA')
+library(FSA)
+
+# Prova de Dunn amb correcció de Holm
+dunn <- dunnTest(expr_GFP_num ~ constr, data = df, method = "holm")
+dunn$res
+```
+
+El resultat mostra, per a cada parella de grups:\
+- la diferència mitjana de rangs,\
+- l’estadístic $Z$,\
+- el valor $p$ ajustat segons el mètode triat (en aquest cas, Holm).
+
+L’argument `method` permet escollir altres correccions per a comparacions múltiples, com "bonferroni" o "BH". L’elecció depèn del grau de conservadorisme que vulguem en la interpretació dels resultats:\
+- "holm" és una opció equilibrada i sovint recomanada;\
+- "bonferroni" és molt conservadora (menys falsos positius);\
+- "BH" (Benjamini–Hochberg) controla la taxa de falsos descobriments, útil en anàlisis amb molts grups.
+
+

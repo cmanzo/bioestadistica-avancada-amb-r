@@ -1,0 +1,115 @@
+---
+title: "Funcions d'R més habituals"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+
+```{r, eval=FALSE}
+### Crear vectors
+c(1, 2, 3)                     # Combina valors en un vector
+
+### Estadístics bàsics
+mean(x)                        # Mitjana del vector x
+var(x)                         # Variància mostral (denominador n-1)
+sd(x)                          # Desviació estàndard mostral
+
+### Generació de dades
+set.seed(123)                  # Fixa la llavor per garantir reproduïbilitat
+rnorm(N, mean = 0, sd = 1)     # N valors d'una distribució normal (μ, σ)
+runif(N, min = 0, max = 10)    # N valors d'una distribució uniforme
+sample(x, k, replace = FALSE)  # Mostreig de k elements d'x (sense repetició)
+
+### Visualització
+hist(rnorm(100), breaks = 20)  # Histograma amb 20 intervals
+curve(dnorm(x, 0, 1), -4, 4)   # Corba de la densitat normal estàndard
+
+### Data frames
+df <- data.frame(valors = x, categories = A) # Crea un dataframe
+head(df, n = 6)                              # Mostra les primeres 6 files
+str(df)                                      # Mostra l’estructura
+
+### Importació / exportació
+write.csv(df, "fitxer.csv", row.names = FALSE)   # Desa un fitxer CSV
+df <- read.csv("fitxer.csv")                     # Llegeix un CSV com a dataframe
+
+### Variables categòriques
+df$A <- factor(df$A)             # Converteix una variable a factor
+levels(df$A)                     # Mostra o modifica els nivells del factor
+
+### ANOVA
+aov(y ~ A, data = df)                     # ANOVA d’un factor
+aov(y ~ A * B, data = df)                 # ANOVA de dos factors amb interacció
+aov(y ~ A + Error(subjecte/A), data = df) # ANOVA de mesures repetides
+
+summary(aov(y ~ A, data = df))            # Mostra resultats de l’ANOVA
+
+### Proves no paramètriques
+wilcox.test(y ~ grup, data = df, exact = FALSE) # Mann–Whitney
+wilcox.test(y1, y2, paired = TRUE, exact = FALSE) # Wilcoxon per mostres aparellades
+kruskal.test(y ~ grup, data = df) # Kruskal–Wallis
+friedman.test(y ~ tractament | subjecte, data = df) # Friedman
+
+### Proves post-hoc
+pairwise.t.test(x, g, p.adjust.method = "holm") # Comparacions t-test parell a parell
+TukeyHSD(aov_model)                             # Comparacions múltiples de Tukey
+
+### Proves post-hoc no paramètriques
+library(FSA)
+dunnTest(y ~ grup, data = df, method = "holm") # Dunn
+
+pairwise.wilcox.test(df$y, df$grup, p.adjust.method = "holm", exact = FALSE) 
+# Comparacions parell a parell (Wilcoxon)
+
+### Mida de l’efecte
+library(effsize)
+cohen.d(y ~ A, data = df)              # Cohen's d
+
+library(effectsize)
+eta_squared(aov_model, partial = FALSE)# Eta quadrat total (η²)
+eta_squared(aov_model, partial = TRUE) # Eta quadrat parcial (η²ₚ)
+
+kw <- kruskal.test(y ~ grup, data = df)
+H <- kw$statistic[[1]]
+N <- nrow(df)
+G <- length(levels(df$grup))
+epsilon2 <- (H - G + 1) / (N - G) # Epsilon quadrat (ε²)
+
+fried <- friedman.test(y ~ tractament | subjecte, data = df)
+Q <- fried$statistic[[1]]
+S <- length(levels(df$subjecte))
+G <- length(levels(df$tractament))
+W <- Q / (S * (G - 1)) # Kendall’s W
+
+### Verificació dels supòsits
+shapiro.test(x)                        # Test de normalitat
+
+library(car)
+leveneTest(y ~ A, data = df)           # Homogeneïtat de variàncies (un factor)
+leveneTest(y ~ A * B, data = df)       # Homogeneïtat de variàncies (dos factors)
+
+### Transformacions de variables
+df$log_y <- log(df$y) # Transformació logarítmica
+df$sqrt_y <- sqrt(df$y) # Arrel quadrada
+df$inv_y <- 1 / df$y # Invers 
+df$prop_trans <- asin(sqrt(df$prop)) # Transformació angular
+
+### Transformació Box–Cox
+library(MASS)
+anova1 <- aov(y ~ A, data = df)
+boxcox(anova1) # Determina λ òptim
+lambda_opt <- 0.25 # Exemple
+df$y_bc <- ((df$y^lambda_opt) - 1) / lambda_opt # Transformació general
+
+### Altres utilitats
+summary(object)                        # Resum estadístic d’un objecte
+table(df$A, df$B)                      # Taula de freqüències
+df_sub <- subset(df, condicio)         # Subset de dades segons una condició
+interaction.plot(df$B, df$A, df$y)     # Gràfic d’interacció entre dos factors
+```

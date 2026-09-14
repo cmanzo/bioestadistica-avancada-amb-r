@@ -1,0 +1,38 @@
+---
+title: "Introducció"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: book
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+
+Aquest document recull els meus apunts de l’assignatura de Bioestadística Avançada, que imparteixo des de l’any 2018 als estudiants de 3r curs del grau de Biotecnologia.
+
+El llibre pressuposa els coneixements de l’assignatura de Bioestadística bàsica, la estadistica descriptiva, i les proves d’hipòtesi per a la comparació de dos grups (com la prova $t$ i el seu equivalent no paramètric). No es tornen a explicar aquí, i és recomanable repassar-los abans de començar si no es tenen frescos.
+
+L’objectiu és oferir una eina pràctica, útil per resoldre problemes reals d’anàlisi de dades biològiques, però sense perdre el rigor teòric que sustenta cada mètode. Dit això, sempre que ha estat possible he intentat simplificar la matemàtica  i centrar-me en la intuïció, l’aplicació amb R i la interpretació correcta dels resultats.
+
+En un context on la intel·ligència artificial guanya cada cop més pes en biotecnologia i en biociències en general, la estadística continua sent-ne el fonament: entendre com es generen, es validen i s’interpreten les dades és imprescindible per treballar amb aquestes eines de manera crítica i rigorosa. Per això, a l’últim capítol introduïm alguns conceptes bàsics que connecten l’estadística amb l’aprenentatge automàtic.
+
+Aquests apunts són, i probablement seran sempre, un document viu. Aquesta és la primera versió. Si trobeu errors, parts poc clares o teniu suggeriments, no dubteu a contactar-me per discutir-los o corregir-los.
+
+---
+
+## Llicència i citació
+
+© 2026 Carlo Manzo, Universitat de Vic – Universitat Central de Catalunya (UVic-UCC).
+
+Aquesta obra es distribueix sota la llicència [Creative Commons Reconeixement-NoComercial-CompartirIgual 4.0 Internacional (CC BY-NC-SA 4.0)](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.ca). Sou lliures de compartir i adaptar el material, sempre que en reconegueu l'autoria, no en feu un ús comercial, i distribuïu qualsevol obra derivada amb la mateixa llicència.
+
+Si voleu citar aquest document:
+
+> Manzo, C. (2026). *Bioestadística Avançada amb R*. Universitat de Vic – Universitat Central de Catalunya. DOI: `[pendent]`
+
+Podeu trobar les dades a la carpeta `datasets/` del repositori de GitHub:
+
+> `[pendent]`

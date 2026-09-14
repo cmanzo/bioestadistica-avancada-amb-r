@@ -1,0 +1,137 @@
+---
+title: "Supòsits de l’ANOVA"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+```{r, echo=FALSE, results="hide"}
+df_tots <- read.csv("datasets/bioreact/bioreact_tots.csv")
+df_tots$medi <- factor(df_tots$medi)
+anova_bioreact <- aov(df_tots$titol ~ df_tots$medi)
+```
+
+L’ANOVA és una prova paramètrica. Això vol dir que, a més de tenir les dades en forma adequada (una variable quantitativa dependent i un factor categòric), cal que es compleixin certs **supòsits estadístics** perquè els resultats siguin vàlids. Si aquests supòsits no es compleixen, els valors $F$ i $p$ que obtenim poden no ser fiables.
+
+------------------------------------------------------------------------
+
+## Supòsits principals
+
+Els tres supòsits principals de la prova ANOVA són:
+
+1. **Independència de les observacions**\
+Cada dada ha de ser independent de la resta (no hi pot haver dependència entre mesures del mateix individu o bioreactor).  Això depèn del disseny experimental. Si hi ha dependència (per exemple, mesures repetides en el temps per un mateix grup), caldria un altre tipus d’ANOVA (*ANOVA de mesures repetides*).
+
+
+2. **Normalitat dins de cada grup**\
+Les observacions de cada grup han de seguir (aproximadament) una distribució normal.
+
+3. **Homogeneïtat de variàncies** (*homoscedasticitat*)\
+La variància ha de ser similar entre tots els grups.
+
+------------------------------------------------------------------------
+
+**Nota sobre la independència de les dades**:
+En el nostre conjunt de dades estem assumint que les observacions són independents. Tanmateix, hi ha una certa dependència potencial: les mesures es van recollir en bioreactors diferents i al llarg de diversos dies. Malgrat això, com que en aquest exemple hem **barrejat totes les observacions** i estem considerant únicament l’efecte del *medi de cultiu*, aquesta dependència queda **diluïda**. Per tant, és raonable assumir independència a efectes pràctics en aquesta anàlisi. Més endavant, veurem com tractar explícitament la dependència amb ANOVA de mesures repetides.
+
+------------------------------------------------------------------------
+
+## Comprovació de la normalitat
+
+Una prova molt utilitzada és la prova de Shapiro-Wilk, que contrasta:
+
+- $H_0$: les dades segueixen una distribució normal\
+- $H_1$: les dades no segueixen una distribució normal
+
+Si $p > 0.05$, no rebutgem $H_0$ i podem assumir normalitat.
+
+------------------------------------------------------------------------
+
+### Comprovació de la normalitat a partir dels residus
+
+Els tests paramètrics no exigeixen que les dades de cada grup siguin normals, sinó que:\
+
+- Els **residus** (*residuals*) del model (és a dir, les diferències entre les observacions i el valor ajustat pel model (és a dir, la mitjana estimada de cada grup) segueixin una distribució normal.
+
+Això és una diferència subtil però molt important.
+En un ANOVA, el model estima una mitjana per a cada grup; el que ha de ser normalment distribuït són les desviacions respecte a aquestes mitjanes.
+
+Per tant, el test correcte de normalitat és sobre els residus del model.
+
+Podem comprovar la normalitat dels residus:
+
+```{r}
+# Càlcul dels residus
+res <- residuals(anova_bioreact)
+
+# Normalitat dels residus
+shapiro.test(res)
+```
+
+Si $p>0.05$ al test de Shapiro–Wilk, és raonable assumir que els residus segueixen una distribució normal.
+
+També és recomanable verificar-ho gràficament amb un **Q-Q plot** (*Quantile–Quantile plot*). Aquest gràfic serveix per comprovar si les dades segueixen una distribució teòrica, típicament la normal. A l’eix $x$ hi ha els quantils de la distribució teòrica (p. ex. normal). A l’eix $y$ hi ha els quantils de les dades observades. Si els punts cauen aproximadament sobre la recta diagonal, vol dir que les dades són compatibles amb la distribució teòrica.
+
+En el nostre cas, pels residus:
+
+```{r}
+# Gràfic Q-Q
+qqnorm(res)
+qqline(res, col = "red")
+```
+
+Com el valor $p$ del Shapiro-Wilk és $> 0{,}05$ i el Q-Q plot mostra els punts propers a la recta, podem assumir que el supòsit de normalitat és raonable.
+
+
+### Comprovació de la normalitat de cada grup
+
+Tot i que teòricament només caldria mirar els residus, en la pràctica pot ser útil mirar també la distribució dins de cada grup.
+Això ens pot ajudar a diagnosticar la font del problema:\
+- Si la distribució és no normal en tots els grups, potser cal transformar la variable, com veurem més endavant.\
+- Si només hi ha un grup amb distribució molt diferent, pot haver-hi un error experimental o un valor atípic.
+
+En R, podem fer la prova de Shapiro-Wilk fent servir la funció `shapiro.test()` aplicada a tots els grups mitjançant la funció `by()`:
+
+```{r}
+# Exemple amb el nostre dataframe
+by(df_tots$titol, df_tots$medi, shapiro.test)
+```
+
+Tots els grups mostren valors $p > 0.05$, de manera que no hi ha evidència per rebutjar la normalitat. Això vol dir que, a efectes pràctics, podem assumir que cada grup segueix una distribució normal.
+
+------------------------------------------------------------------------
+
+## Comprovació de l’homogeneïtat de variàncies
+
+Per comprovar si tots els grups tenen variàncies semblants fem servir la **prova de Levene**. Aquesta prova calcula, per a cada observació, la diferència entre el seu valor i la mediana del seu grup (per defecte en R; en altres versions també es pot usar la mitjana). Després aplica un ANOVA sobre aquests valors absoluts. Si les desviacions respecte a la mediana són similars en tots els grups, considerem que les variàncies són iguals.  
+
+Les hipòtesis són:
+
+- $H_0$: totes les variàncies són iguals\
+- $H_1$: almenys una variància és diferent  
+
+Si $p > 0.05$: no rebutgem $H_0$, podem assumir homogeneïtat de variàncies.
+
+En R, amb el paquet **`car`**, la funció és `leveneTest`:
+
+```{r}
+# install.packages("car")
+library(car)
+
+leveneTest(titol ~ medi, data = df_tots)
+```
+El valor $p$ és superior a 0.05, així que no podem rebutjar $H_0$. Per tant, les variàncies es poden considerar iguals entre grups.
+
+Com que les dades compleixen normalitat i homogeneïtat de variàncies, podem confiar en els resultats de la prova ANOVA i en el valor $p$ que ens ha donat.
+
+------------------------------------------------------------------------
+
+## Què passa si els supòsits fallen?
+
+- **Normalitat no complerta**: si les mostres són grans ($n > 30$ per grup), l’ANOVA és força robust gràcies al teorema del límit central. Si les mostres són petites, millor usar proves no paramètriques (p. ex. Kruskal–Wallis, que veurem més endavant).\
+- **Variàncies diferents** (heteroscedasticitat): es pot usar una versió robusta com l’ANOVA de Welch (`oneway.test(..., var.equal = FALSE)` en R).

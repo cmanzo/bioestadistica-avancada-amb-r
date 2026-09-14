@@ -1,0 +1,635 @@
+---
+title: "Regressió logística"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+
+En molts experiments biològics i biomèdics, la variable resposta no és contínua sinó **binària**. Per exemple, podem trobar situacions on:\
+- una cèl·lula mor o sobreviu,\
+- un cultiu creix o no creix,\
+- un biomarcador és positiu o negatiu,\
+- un pacient respon o no respon a un tractament.
+
+En aquests casos, la resposta binària és una variable nominal (viu/mort, positiu/negatiu) que sovint codifiquem de forma numèrica (`0` i `1`) o lògica (`False` i `True`) per poder-la analitzar.
+
+La regressió lineal no és adequada per aquest tipus de dades. Hi ha diversos motius:\
+- el resultat pot no tenir cap mena d’ordre natural (per exemple, viu no és “més” que mort),\
+- el model lineal pot predir valors fora de l’interval [0,1], inadmissibles com a probabilitats,\
+- la distribució de la resposta no és normal i la variància no és constant, de manera que es violen els supòsits bàsics de la regressió lineal.
+
+Per aquests motius, quan la resposta és binària la solució natural i coherent és la **regressió logística**, un model que relaciona els predictors (continus o categòrics) amb la probabilitat que l’esdeveniment d’interès (p. ex. sobreviure, respondre al tractament, expressar un biomarcador) tingui lloc.
+
+## Probabilitat, *odds* i processos multiplicatius
+
+Considerem un esdeveniment amb només dos resultats possibles. Per exemple, la **supervivència d’una cèl·lula d’*E. coli*** després d’exposar-se a un antibiòtic com l’ampicil·lina. La probabilitat d’èxit, que denotarem per $p$, indica amb quina freqüència esperem que l’esdeveniment tingui lloc.
+
+Suposem ara que volem expressar aquesta probabilitat en funció d’un **predictor quantitatiu** $x$. En el nostre exemple, un factor determinant per a la supervivència és el **nivell d’expressió d’un enzim de resistència**, com ara la β-lactamasa (BLA).
+
+Si intentéssim modelar $p$ directament mitjançant una funció lineal, toparíem amb un problema evident:  
+una recta pot prendre qualsevol valor entre $-\infty$ i $+\infty$, mentre que una **probabilitat sempre està restringida a l’interval** $[0,1]$.  
+Això fa que la regressió lineal sigui inadequada per a la predicció de probabilitats.
+
+Per superar aquesta limitació introduïm una quantitat especialment útil: la **raó entre la probabilitat d’èxit i la de fracàs**:
+
+$$ o = \frac{p}{1 - p} $$
+
+Aquesta expressió mesura quantes vegades és més probable l’èxit que el fracàs. Per exemple, si $p=0.75$, aleshores $o=0.75/0.25=3$: l’èxit és tres vegades més probable que el fracàs. Si $p=0.5$, les *odds* són 1, cosa que indica que ambdós resultats són igualment probables.
+
+Observem que les *odds* ja són més flexibles que la probabilitat, perquè poden prendre qualsevol valor positiu, de 0 fins a $+\infty$. Tot i així, encara no resolen del tot el nostre problema.
+
+:::: {.content-visible when-format="html"}
+::: {.callout-tip}
+## Curiositat: com se'n diu, d'"odds"?
+
+En anglès a això se li diu **odds**. En català no hi ha un terme únic i estandarditzat: en biomedicina s'ha fet servir *raó d'avantatges*, en estadística general a vegades *raó de possibilitats*, i en el llenguatge col·loquial de les apostes simplement "les probabilitats" (per exemple, "les odds són 3 a 1"). En aquest text continuarem usant *odds* directament, que és el terme més estès a la literatura científica.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{examplebox}
+```
+**Curiositat: com se'n diu, d'"odds"?**
+
+En anglès a això se li diu **odds**. En català no hi ha un terme únic i estandarditzat: en biomedicina s'ha fet servir *raó d'avantatges*, en estadística general a vegades *raó de possibilitats*, i en el llenguatge col·loquial de les apostes simplement "les probabilitats" (per exemple, "les odds són 3 a 1"). En aquest text continuarem usant *odds* directament, que és el terme més estès a la literatura científica.
+
+```{=latex}
+\end{examplebox}
+```
+:::
+
+En molts fenòmens biomèdics, hi ha un aspecte important: l’efecte dels predictors no sol ser **additiu en probabilitat**, sinó **multiplicatiu en odds**. És a dir, cada unitat addicional del predictor tendeix a *multiplicar* les possibilitats d’èxit, no pas a sumar-hi una quantitat fixa.
+
+Això és exactament el que observem en l’exemple de la supervivència d’*E. coli*. Les dades mostren que a nivells baixos de BLA la supervivència és gairebé nul·la, però augmenta ràpidament a mesura que incrementa la quantitat d’enzim, fins a una zona de saturació.
+
+La interpretació és directa: perquè una cèl·lula sobrevisqui, totes les molècules d’antibiòtic han de ser degradades. Amb molt poca BLA, una sola molècula no degradada pot ser fatal. Amb més enzim, cada unitat extra no garanteix la supervivència, però *multiplica* les oportunitats de neutralitzar totes les molècules entrants.
+
+Per tant, cada increment del predictor (nivell d’enzim) **multiplica** les *odds* d’èxit. Formalitzem-ho. Si denotem per $K$ el factor multiplicatiu de les *odds* per cada augment unitari del predictor, escrivim:
+
+$$ o(x) = o(0)\,K^{x} $$
+
+Per motius que veurem de seguida, és convenient reparametritzar:
+
+$$ o(0) = e^{\beta_0}, \qquad K = e^{\beta_1} $$
+
+Això ens dona:
+
+$$ o(x) = e^{\beta_0}\,e^{\beta_1 x} $$
+
+Recordem dues propietats bàsiques del logaritme:
+
+- transforma productes en sumes:  
+  $$ \ln(a b) = \ln(a) + \ln(b) $$
+
+- transforma potències en multiplicacions:  
+  $$ \ln(a^b) = b \ln(a) $$
+
+Si apliquem el logaritme a l’expressió de les *odds*:
+
+$$ \ln(o) = \beta_0 + \beta_1 x $$
+
+I, com que les *odds* són $p/(1-p)$, això és equivalent a:
+
+$$ \ln\!\Big(\frac{p}{1-p}\Big) = \beta_0 + \beta_1 x $$
+
+El terme de l’esquerra rep el nom de **log-odds** o *logit*, i té la propietat crucial que pot prendre **qualsevol valor real**. Així, hem aconseguit representar un problema de probabilitats dins d’una **regressió lineal convencional**, simplement aplicant una transformació adequada.
+
+Aquest és el fonament de la **regressió logística**: modelar els *log-odds* com una combinació lineal dels predictors.
+
+## La funció logística
+
+Hem arribat a l’expressió fonamental de la regressió logística, que ens diu que els *log-odds* depenen linealment de $x$. Però el que realment ens interessa és obtenir la **probabilitat** $p$ d’èxit en funció del predictor.
+
+Per recuperar $p$, només cal invertir els passos que hem fet. Exponenciem per desfer el logaritme, aïllem $p$, i reordenem. El resultat és:
+
+$$ p(x) = \frac{1}{1 + e^{-(\beta_0 + \beta_1 x)}} $$
+Aquesta és la famosa **funció logística**, una corba en forma de “S” (**sigmoide**) amb tres propietats importants:\
+- s’acosta a 1 quan el predictor és molt gran,\
+- s’acosta a 0 quan el predictor és molt petit,\
+- pren el valor 0.5 quan $\beta_0 + \beta_1 x = 0$.
+
+Visualment, la probabilitat $p(x)$ és com una versió “comprimida” de la recta lineal $\beta_0 + \beta_1 x$: preserva la seva forma qualitativa però queda obligada a mantenir-se estrictament entre 0 i 1.
+
+```{r, eval=TRUE, echo=FALSE}
+# Paràmetres del model logístic
+beta0 <- 0
+beta1 <- 1.2
+
+# Seqüència de valors del predictor
+x <- seq(-6, 6, length.out = 200)
+
+# Funció logística
+logistic <- function(z) 1 / (1 + exp(-z))
+
+# Score lineal
+eta <- beta0 + beta1 * x
+
+# Probabilitat logística
+p <- logistic(eta)
+
+# --- Gràfic ---
+par(mar = c(5,5,4,5))   # marge ampliat per al segon eix
+
+plot(x, p, type = "l", lwd = 3, col = "firebrick",
+     ylim = c(0,1),
+     xlab = "x",
+     ylab = "Probabilitat p(x)",
+     main = "Funció logística i score lineal")
+```
+## Regressió logística simple
+
+### Exemple biològic
+```{r, echo=FALSE, eval=TRUE}
+set.seed(123)
+
+n <- 150
+BLA_expr <- round(runif(n, 0, 10), 2)  # expressió entre 0 i 10
+
+# Paràmetres reals del sistema
+beta0 <- -4         # odds base molt baixes sense enzim
+beta1 <- 0.75       # cada unitat de BLA multiplica odds per exp(0.75) ≈ 2.12
+
+# Probabilitat logística real
+p <- 1 / (1 + exp(-(beta0 + beta1 * BLA_expr)))
+
+# Variable resposta (Bernoulli)
+superviv <- rbinom(n, 1, p)
+
+df <- data.frame(BLA_expr, superviv)
+
+write.csv(df, "datasets/regressio/Ecoli.csv", row.names = FALSE)
+```
+
+Seguim amb l’exemple anterior i considerem un conjunt de dades que inclouen l'**expressió de β-lactamasa (BLA)** i la **supervivència** d’un cultiu d’*E. coli* exposat a ampicil·lina. Les variables són:\
+- `BLA_expr`: expressió relativa de β-lactamasa (unitats arbitràries)\
+- `superviv` (0/1): indica si la cèl·lula ha sobreviscut (1) o ha mort (0)
+
+La nostra *hipòtesi biològica* és que **increments d’expressió BLA multipliquen les possibilitats de supervivència**, tal com discuteix la secció sobre *odds*. Per tant, ajustarem un **model de regressió logística**.
+
+Carreguem les dades:
+```{r}
+df <- read.csv("datasets/regressio/Ecoli.csv")
+str(df)
+```
+
+Visualitzem-les amb una gràfica:
+```{r}
+plot(df$BLA_expr, df$superviv,
+     pch=19, col=rgb(0,0,1,0.5),
+     xlab=expression("Expressió de " * beta * "-lactamasa"),
+     ylab="supervivència (0/1)",
+     main="supervivència vs expressió BLA en E. coli")
+
+```
+
+### Ajust del model
+
+Per ajustar la regressió logística utilitzem la funció `glm()` (*generalized linear model*). Utilitzem l'argument `family = binomial` perquè la variable resposta és binària i segueix una distribució Bernoulli. Aquesta especificació indica a `glm()` quina és la distribució adequada i activa, per defecte, el `link logit`, que transforma la probabilitat en uns log-odds no acotats.
+
+
+```{r}
+model <- glm(superviv ~ BLA_expr, data=df, family=binomial)
+summary(model)
+```
+El resum mostra informació similar a la d’una regressió lineal, però interpretada en termes de log-odds. En primer lloc, hi ha la taula amb els coeficients (`Estimate`), el seu error estàndard (`Std. Error`), l’estadístic (`z value`) i el valor $p$ (`Pr(>|z|)`) de la prova.
+
+En el nostre cas, `(Intercept)` correspon a $\beta_0$ i representa els log-odds de supervivència quan l’expressió de BLA és 0. Com que és un valor molt negatiu, això implica que la probabilitat de supervivència amb BLA = 0 és pràcticament nul·la, cosa que té sentit biològic: sense β-lactamasa, la cèl·lula no pot degradar l’antibiòtic.
+
+La segona fila, `BLA_expr`, ens dona el coeficient $\beta_1$, que indica com canvien els log-odds quan el predictor augmenta una unitat. Si fem l’exponencial d’aquest valor obtenim l’*odds ratio* $K = e^{\beta_1}$:
+
+```{r}
+coefs <- coef(model)
+K = exp(coefs[['BLA_expr']])
+K
+```
+
+Això significa que cada unitat extra d’expressió de BLA multiplica per aproximadament 2.73 les *odds* de supervivència. Biològicament és coherent: més β-lactamasa implica més degradació d’ampicil·lina i, per tant, més probabilitat de sobreviure.
+
+Els valors `z value` i `Pr(>|z|)` del resum del model corresponen a la prova $z$ per contrastar la hipòtesi nul·la:
+$$H_0: \beta_i = 0.$$
+El valor $z$ és simplement la raó entre el coeficient estimat i el seu error estàndard. Sota la hipòtesi nul·la i assumint mostres prou grans, aquesta quantitat segueix aproximadament una distribució normal estàndard, cosa que permet calcular el $p$-value associat.
+
+Atès que els valors $p$ són extremadament petits, rebutgem l’hipòtesi nul·la: tant l’intercept com el pendent són estadísticament significatius. Les tres estrelles (`***`) indiquen un nivell de significació molt alt.
+
+A sota de la taula de coeficients trobem:\
+- `Null deviance`: *deviance* del model sense predictors (només intercept)\
+- `Residual deviance`: *deviance* del model un cop inclòs el predictor BLA_expr.
+
+La *deviance* és l’equivalent, en regressió logística, a la suma de quadrats residuals de la regressió lineal. Una reducció gran entre `Null deviance` i `Residual deviance` indica que el predictor explica una part substancial de la variabilitat en la resposta.
+
+En el nostre cas, la reducció és molt notable, cosa que confirma la importància del predictor.
+
+Després hi trobem l’`AIC` (*Akaike Information Criterion*). És una mesura de qualitat del model penalitzada per la seva complexitat. No té un valor absolut interpretable, però un AIC més baix indica un model millor i és útil per comparar models que contenen un nombre de predictors diferent.
+
+Finalment, el `Number of Fisher Scoring iterations` indica quantes iteracions ha necessitat el mètode numèric per trobar els paràmetres òptims.
+
+Afegim la corba logística ajustada al gràfic original:
+
+```{r}
+plot(df$BLA_expr, df$superviv,
+     pch=19, col=rgb(0,0,1,0.4),
+     xlab=expression("Expressió de " * beta * "-lactamasa"),
+     ylab="supervivència",
+     main="Regressió logística")
+
+xseq <- seq(0,10,length=200)
+pred <- predict(model, newdata=data.frame(BLA_expr=xseq), type="response")
+
+lines(xseq, pred, col="firebrick", lwd=3)
+```
+
+
+Aquesta corba mostra clarament el comportament sigmoïdal esperat: baixa supervivència a valors petits de BLA, una zona de transició i una saturació a mesura que l’enzim esdevé abundant. La funció logística pren el valor 0.5 quan el seu argument és 0, és a dir quan $\beta_0 + \beta_1 x = 0$, que en el nostre cas dona $\approx -\frac{-4.6}{1} = 4.6$.
+
+La transició aparentment “suau” de la corba és una conseqüència natural del model ajustat. En aquest exemple, el coefficient estimat és $\beta_1 \approx 1$, un valor moderat que genera una sigmoide amb una pendent no excessivament pronunciada. Un valor més alt de $\beta_1$ produiria una transició molt més abrupta.
+
+Finalment, cal recordar que aquesta pendent moderada reflecteix el patró de les dades, que mostren una zona ampla on apareixen molts 0 i 1 barrejats. Aquesta variabilitat és típica quan la probabilitat real és intermèdia i fa que la transició observada sembli més estesa.
+
+### Predicció 
+
+Un cop construït i ajustat el model de regressió logística, el podem fer servir per fer **prediccions** sobre nous casos. En el nostre exemple, això vol dir que, donat un nou cultiu d’*E. coli* per al qual mesurem l’expressió de β-lactamasa, podem introduir aquest valor de `BLA_expr` al model i obtenir la probabilitat estimada que el cultiu sobrevisqui a l’ampicil·lina. D’aquesta manera, el model no només descriu la relació entre expressió i supervivència en les dades originals, sinó que es converteix en una eina per anticipar el comportament de noves mostres en condicions similars.
+
+Suposem que volem predir el resultat per una cèl·lula amb una expressió de β-lactamasa igual a 5. Com vam fer per a la regressió lineal, utilitzem la funció `predict()`. A més de la possibilitat de seleccionar el tipus d'interval, tal com vam veure anteriorment, aquesta funció permet obtenir tant els log-odds com les probabilitats estimades modificant l'argument `type`. L’argument `type = "response"` indica que volem la probabilitat logística:
+
+```{r}
+new <- data.frame(BLA_expr = 5)
+prob <- predict(model, new, type = "response")
+prob
+```
+
+Si no especifiquem `type = "response"`, la funció retorna els log-odds en lloc de la probabilitat.
+```{r}
+log_odds <- predict(model, new)
+```
+
+També podem calcular prediccions per a un conjunt de valors:
+```{r}
+vals <- data.frame(BLA_expr = c(1, 3, 5, 7))
+probs <- predict(model, vals, type = "response")
+probs
+```
+
+Això ens dona la probabilitat estimada de supervivència per cada nivell d’expressió.
+
+La regressió logística ens dóna una probabilitat $p(x)$, però no ens diu automàticament com convertir-la en una predicció.  
+El criteri més senzill és utilitzar un **llindar** (o *cutoff*):\
+- Si $p(x) \ge 0.5$ → predicció: *supervivència*\
+- Si $p(x) < 0.5$ → predicció: *mort*
+
+Aquest llindar té sentit perquè 0.5 és el punt on la funció logística canvia de règim (les odds són 1). En el nostre exemple, això equival a dir que si l’expressió de BLA és prou alta perquè la probabilitat de neutralitzar totes les molècules d’ampicil·lina superi el 50%, predirem que la cèl·lula sobreviurà.
+
+Si volem convertir la probabilitat en una classificació (supervivència sí/no) en R:
+```{r}
+pred_class <- ifelse(probs >= 0.5, 1, 0)
+pred_class
+```
+
+### Matriu de confusió i mesures d’avaluació
+
+Quan fem prediccions binàries, cada cas pot acabar classificat en una de quatre categories:
+
+- **TP (true positive)**: la resposta real és 1 i el model prediu 1  
+- **TN (true negative)**: la resposta real és 0 i el model prediu 0  
+- **FP (false positive)**: la resposta real és 0 però el model prediu 1  
+- **FN (false negative)**: la resposta real és 1 però el model prediu 0  
+
+En el nostre exemple biològic:
+
+- **FP**: predir que una cèl·lula *sobreviu* quan en realitat **mor**  
+- **FN**: predir que una cèl·lula *morirà* quan en realitat **sobreviu**
+
+A la zona de transició de la funció logística, on la probabilitat és intermèdia i apareixen molts 0 i 1 barrejats, el model inevitablement comet alguns errors. Per quantificar com de bé funciona, podem calcular les prediccions sobre les mateixes dades i construir la **matriu de confusió**, que té l’estructura:
+
+```
+          Real
+Predicció   0   1
+        0  TN  FN
+        1  FP  TP
+```
+
+En R, ho podem fer així:
+
+```{r}
+# Probabilitats predites pel model
+df$probs <- predict(model, type = "response")
+
+# Classificació binària amb llindar 0.5
+df$class <- ifelse(df$probs >= 0.5, 1, 0)
+
+# Matriu de confusió
+cm <- table(Predicció = df$class, Real = df$superviv)
+cm
+```
+
+Un cop tenim la matriu de confusió, podem extreure els valors:
+
+```{r}
+# Extreure TP, TN, FP, FN
+TP <- cm["1", "1"]
+TN <- cm["0", "0"]
+FP <- cm["1", "0"]
+FN <- cm["0", "1"]
+```
+
+Les mesures clàssiques d’avaluació són:\
+- **Accuracy**:
+  $$ \text{Accuracy} = \frac{\text{TP}}{\text{TP} + \text{FN} + \text{FP} + \text{TN}} $$
+- **Sensibilitat** (o *recall*):\
+  $$ \text{TPR} = \frac{\text{TP}}{\text{TP} + \text{FN}} $$
+   *capacitat de detectar els casos positius*
+   
+- **Especificitat**:\
+  $$ \text{TNR} = \frac{\text{TN}}{\text{TN} + \text{FP}} $$
+   *capacitat de detectar els casos negatius*
+   
+- **Precisió** (*precision*):\
+  $$ \text{PPV} = \frac{\text{TP}}{\text{TP} + \text{FP}} $$
+Amb R les podem calcular així:
+```{r}
+accuracy <- (TP + TN) / sum(cm)
+sensibilitat <- TP / (TP + FN)
+especificitat <- TN / (TN + FP)
+precisio <- TP / (TP + FP)
+
+# Mostrar resultats
+performance <- c(
+  Accuracy = accuracy,
+  Sensibilitat = sensibilitat,
+  Especificitat = especificitat,
+  Precisio = precisio
+)
+
+performance
+```
+
+
+### Corbes ROC i AUC
+
+Totes les mesures que hem vist fins ara (accuracy, sensibilitat, especificitat, precisió) **depenen del llindar** que fem servir per convertir la probabilitat estimada en una predicció binària. Si modifiquem el cutoff (per exemple, de 0.3 a 0.5 o 0.8) obtenim prediccions diferents i, en conseqüència, valors molt diferents de sensibilitat i especificitat. Per tant, avaluar un model només amb un únic llindar pot donar una imatge incompleta del seu comportament.
+
+Una manera més informativa i robusta d'avaluar la qualitat d’un model és explorar tots els llindars possibles. Això és exactament el que fa la corba **ROC** (*Receiver Operating Characteristic*), una eina desenvolupada originalment en l’àmbit dels radars per quantificar la capacitat de detecció en presència de soroll.
+
+La corba ROC representa la relació entre:\
+- **TPR (True Positive Rate)** (sensibilitat)\
+- **FPR (False Positive Rate)** (1 - especificitat)\
+A mesura que el llindar varia, obtenim diferents parells (FPR, TPR), que formen la corba. Un model ideal té una corba ROC que s’acosta molt a l’angle superior esquerre, on la sensibilitat és alta i el nombre de falsos positius és mínim. 
+
+Quan un model no té capacitat de discriminació, les seves prediccions no estan relacionades amb la classe real: les probabilitats estimades no són més altes per als positius que per als negatius. En aquesta situació, per a qualsevol llindar, la sensibilitat (TPR) i la taxa de falsos positius (FPR) augmenten en la mateixa proporció, de manera que TPR = FPR i els punts de la corba s’alineen al llarg de la diagonal. Aquesta diagonal correspon exactament al comportament d’un classificador aleatori.
+
+Podem calcular-la en R:
+```{r}
+# Instal·lar pROC si no està instal·lat
+# install.packages("pROC")
+
+library(pROC)
+
+# Calcular objecte ROC
+roc_obj <- roc(response = df$superviv, predictor = df$probs)
+```
+i representa-la:
+
+```{r}
+plot(roc_obj,
+     legacy.axes = TRUE,
+     col = "firebrick",
+     lwd = 3,
+     asp = .5,
+     main = "Corba ROC per al model logístic")
+```
+
+
+
+La seva àrea sota la corba, **AUC (Area Under the Curve)**, ofereix un indicador numèric del rendiment global del model:\
+- AUC = 0.5 → comportament aleatori\
+- AUC = 1.0 → separació perfecta entre classes\
+- AUC entre 0.7 i 0.9 → molt bon model en problemes biològics reals
+
+
+```{r}
+# Calcular AUC
+auc(roc_obj)
+
+```
+
+En el nostre exemple, un AUC elevat significa que el model és capaç de distingir correctament, en un ampli rang de valors de BLA, entre les cèl·lules que sobreviuen i les que moren, independentment del llindar triat per fer la classificació.
+
+## Regressió logística múltiple
+
+Fins ara hem estudiat com un únic predictor, l’expressió de β-lactamasa (BLA), pot explicar la probabilitat que una cèl·lula d’*E. coli* sobrevisqui a l’ampicil·lina. En un context experimental real, però, la supervivència també pot dependre d’altres factors, com ara la concentració de l’antibiòtic, la taxa de creixement basal i la condició d’estrès prèvia.
+
+```{r, eval=TRUE, echo=FALSE}
+set.seed(123)
+
+n <- 350
+
+# Predictors (en català)
+
+BLA_expr <- round(runif(n, 0, 10), 2)  # predictor continu
+nivell_amp    <- factor(sample(c("baix", "alt"), n, replace=TRUE))
+taxa_creixement <- round(rnorm(n, mean = 1, sd = 0.3), 2)                 # continu
+condicio_stress <- factor(sample(c("cap", "oxidatiu"), n, replace=TRUE))
+
+# Paràmetres "reals"
+
+beta0 <- -3.5
+beta1 <- 0.6                     # efecte de l'expressió BLA
+beta2 <- -2                      # efecte de nivell alt d'ampicil·lina
+beta3 <- 1.2                     # efecte positiu de la taxa de creixement
+beta4 <- -1.5                    # estrès oxidatiu redueix supervivència
+
+eta <- beta0 +
+beta1 * BLA_expr +
+beta2 * (nivell_amp == "alt") +
+beta3 * taxa_creixement*0.1 +
+beta4 * (condicio_stress == "oxidatiu")
+
+p <- 1 / (1 + exp(-eta))
+superviv <- rbinom(n, 1, p)
+
+df <- data.frame(
+BLA_expr,
+nivell_amp,
+taxa_creixement,
+condicio_stress,
+superviv
+)
+
+write.csv(df, "datasets/regressio/Ecoli_mult.csv", row.names = FALSE)
+```
+
+
+Carreguem les dades:
+```{r}
+df <- read.csv("datasets/regressio/Ecoli_mult.csv")
+str(df)
+```
+
+Veiem que alguns predictors són contínus (`BLA_expr`, `taxa_creixement`) i altres categòrics (`nivell_amp`, `condicio_stress`). Aquesta combinació de predictors continus i categòrics és molt habitual en biologia. En aquests casos, un model logístic múltiple ens permet estimar l’efecte de cada variable controlant per les altres, cosa essencial quan els factors biològics interactuen o tenen efectes solapats:
+
+```{r}
+model_mult <- glm(superviv ~ BLA_expr + nivell_amp + 
+                    taxa_creixement + condicio_stress,
+                  data = df, family = binomial)
+
+summary(model_mult)
+```
+
+En un model logístic múltiple, cada coeficient descriu l’efecte d’un predictor quan tots els altres es mantenen constants. Aquest detall és clau en contextos biològics, on els efectes poden solapar-se: per exemple, l'expressió de BLA pot compensar parcialment un nivell alt d’antibiòtic, mentre que l’estrès oxidatiu pot debilitar les defenses cel·lulars independentment de la BLA. El model múltiple ens permet quantificar aquests efectes de manera desglossada i comparar la seva magnitud relativa.
+
+En el resum del model observem coeficients com `nivell_ampbaix` o `condicio_stressoxidatiu`. Això és degut al fet que R tracta les variables categòriques com a factors  i, per defecte, crea una *dummy variable* (variable indicadora) per representar cada nivell. En aquest procés, R tria automàticament un nivell de referència (el primer en ordre alfabètic). A partir d’aquí, estima coeficients per als altres nivells. Aquesta codificació és la que en estadística s’anomena *treatment coding*. Amb aquest esquema, cada coeficient associat a una *dummy variable* es pot interpretar directament com la diferència en log-odds respecte al nivell de referència.
+
+Aquest comportament evita imposar relacions numèriques artificials entre categories. Només cal canviar el nivell de referència si volem una interpretació més directa en termes biològics. Recordem que, en carregar les dades amb `read.csv()`, les variables categòriques arriben com a *character* i hem de convertir-les manualment en *factors*. Per exemple, per definir “baix” com a nivell de referència:
+
+```{r, eval=FALSE}
+df$nivell_amp <- factor(df$nivell_amp)
+df$nivell_amp <- relevel(df$nivell_amp, ref = "baix")
+```
+A partir d’aquest moment, el model mostrarà el coeficient `nivell_ampalt`, que representa el canvi en log-odds de supervivència entre “alt” i el nivell de referència “baix”.
+
+El resum del model ens mostra com cada predictor contribueix a explicar la probabilitat que una cèl·lula d’*E. coli* sobrevisqui al tractament amb ampicil·lina, quan tots els altres factors es mantenen constants.
+
+L'expressió de BLA té un coeficient positiu i altament significatiu. Cada unitat extra d’expressió augmenta les odds de supervivència en $e^{0.60} \approx 1.82$, és a dir, un increment del 82%. Aquest efecte és coherent amb la biologia: més β-lactamasa implica més capacitat de degradar l’antibiòtic.
+
+El coeficient `nivell_ampbaix` és positiu perquè el nivell de referència és “alt”. Comparat amb una concentració alta, una concentració baixa d’ampicil·lina multiplica les odds de supervivència per $e^{1.51} \approx 4.5$, indicant un efecte intens i significatiu, també biològicament esperable.
+
+El coeficient de la taxa de creixement és positiu però no significatiu. En aquest conjunt de dades, la taxa basal de creixement no sembla aportar informació rellevant un cop considerats els altres factors.
+
+L'estrès oxidatiu té un efecte negatiu fort i significatiu. El tractament previ amb estrès oxidatiu redueix les odds de supervivència a $e^{-1.72} \approx 0.18$ és a dir, una reducció d’un 82% respecte a “cap estrès”.
+
+La interpretació combinada d’aquests coeficients posa en relleu un aspecte important: fins i tot si un predictor té un efecte fort (com la BLA), altres condicionants poden amplificar o contrarestar aquest efecte. El model integrat mostra, per exemple, que l’estrès oxidatiu té un impacte més gran en les odds de supervivència que un increment moderat d’expressió de BLA. Aquesta lectura global només és possible amb un model múltiple.
+
+---
+
+Per comprendre millor com interactuen els predictors, representem la probabilitat de supervivència prevista pel model en funció de l’expressió de BLA, comparant les dues condicions d’ampicil·lina (“baix” i “alt”). Ara bé, la supervivència també depèn fortament del nivell d’estrès cel·lular, i per això generem dues representacions separades: una per a cèl·lules sense estrès (“cap”) i una altra per a cèl·lules sotmeses a estrès oxidatiu.
+
+Per tal d’aïllar l’efecte combinat de BLA, ampicil·lina i estrès, mantenim constant la taxa de creixement, posant-la igual a la mitjana del conjunt i en cada panell fixem el nivell d’estrès (“cap” o “oxidatiu”).
+
+```{r, fig.height=7.5, fig.width=6}
+xseq <- seq(0, 20, length.out = 200)
+
+# Configurem dos panells
+
+par(mfrow = c(2, 1))
+
+for (stress in c("cap", "oxidatiu")) {
+
+# Construïm el grid de prediccions
+
+df_pred <- expand.grid(
+BLA_expr     = xseq,
+nivell_amp        = factor(c("baix", "alt"), levels = c("baix","alt")),
+taxa_creixement   = mean(df$taxa_creixement),
+condicio_stress   = stress
+)
+
+df_pred$prob <- predict(model_mult, df_pred, type = "response")
+
+# Gràfic per al nivell d'estrès actual
+
+plot(
+df_pred$BLA_expr[df_pred$nivell_amp == "baix"],
+df_pred$prob[df_pred$nivell_amp == "baix"],
+type = "l", lwd = 3, col = "forestgreen",
+ylim = c(0, 1),
+xlab = "Expressió BLA",
+ylab = "Probabilitat de supervivència",
+main = paste("Estrès:", stress)
+)
+
+lines(
+df_pred$BLA_expr[df_pred$nivell_amp == "alt"],
+df_pred$prob[df_pred$nivell_amp == "alt"],
+lwd = 3, col = "firebrick"
+)
+
+legend(
+"bottomright",
+legend = c("Ampicil·lina baixa", "Ampicil·lina alta"),
+col = c("forestgreen", "firebrick"),
+lwd = 3
+)
+
+}
+
+# Tornem al mode de gràfic per defecte
+
+par(mfrow = c(1, 1))
+```
+Aquesta visualització ens permet veure clarament com el model múltiple integra diversos factors biològics. L’ampicil·lina modula la forma de la corba, desplaçant la transició cap a valors més alts o baixos de BLA segons la concentració. L’estrès oxidatiu, en canvi, redueix globalment la probabilitat de supervivència en tot el rang de BLA. Això mostra clarament que els predictors tenen efectes qualitativament diferents: uns afecten el llindar de transició, mentre que altres afecten el nivell global de resposta.
+
+---
+
+### Comparació de models amb AIC
+
+Tot i que el model múltiple incorpora diversos predictors rellevants des del punt de vista biològic, convé preguntar-nos si tots ells contribueixen realment a millorar la capacitat predictiva del model. De fet, en el resum del model hem vist que la taxa de creixement no és significativa, cosa que suggereix que podria no aportar informació addicional un cop tenim en compte l’expressió de BLA, el nivell d’ampicil·lina i la condició d’estrès.
+
+Això planteja una pregunta natural: Cal mantenir aquest predictor, o un model més senzill podria descriure igualment bé les dades?
+
+Per explorar aquesta idea, ajustem un model més simple que elimina la taxa de creixement:
+
+```{r}
+model_simple <- glm(superviv ~ BLA_expr + nivell_amp + 
+                    condicio_stress,
+                  data = df, family = binomial)
+```
+
+Una manera estàndard de respondre aquesta qüestió és utilitzar el criteri d’Akaike (AIC), que combina qualitat d’ajust i simplicitat. L’AIC penalitza models massa complexos i, entre dos models, prefereix el que té AIC més baix.
+
+Si el model simple té un AIC similar o inferior al del model complet, voldrà dir que la taxa de creixement efectivament no aportava informació útil, i preferirem el model reduït per ser més parsimoniós. En canvi, si el model múltiple obté un AIC clarament més baix, això justificarà mantenir tots els predictors.
+
+Aquesta comparació ens permet decidir de manera objectiva quina estructura de model és més adequada, equilibrant precisió, simplicitat i coherència biològica.
+
+```{r}
+AIC(model_simple, model_mult)
+```
+
+En aquest cas, el model simple té un AIC lleugerament més baix que el model múltiple. Recordem que un AIC més baix indica un millor compromís entre ajust i simplicitat. Per tant, aquest resultat suggereix que el predictor afegit al model múltiple (la taxa de creixement) no proporciona una millora suficient en l’ajust del model com per compensar la seva inclusió.
+
+Això és coherent amb el que havíem observat prèviament en el resum del model: el coeficient de la taxa de creixement no era significatiu i el seu efecte estimat era molt petit. L’AIC confirma estadísticament aquesta impressió: el model que exclou la taxa de creixement és preferible segons el criteri de màxima parsimònia.
+
+Així, l’AIC ens ajuda a decidir no només quin model “s’ajusta més”, sinó quin model és suficientment bo sense ser innecessàriament complex, un principi fonamental en modelització estadística.
+
+### Corba ROC i AUC
+
+A més de comparar coeficients i AIC, resulta molt informatiu comparar la **capacitat discriminativa** del model múltiple amb la del model simple mitjançant la corba ROC.
+
+Primer generem les probabilitats i les corbes ROC i les AUC del model múltiple i del model simple:
+```{r}
+df$probs_mult <- predict(model_mult, type = "response")
+roc_mult <- roc(response = df$superviv, predictor = df$probs_mult)
+auc_mult <- auc(roc_mult)
+auc_mult
+
+df$probs_simple <- predict(model_simple, type = "response")
+roc_simple <- roc(response = df$superviv, predictor = df$probs_simple)
+auc_simple <- auc(roc_simple)
+auc_simple
+```
+
+El model múltiple incorpora informació addicional i per tant és habitual que l’AUC augmenti. Tot i això, si un predictor no és realment informatiu, com hem vist amb la taxa de creixement, la millora en AUC pot ser negligible. Aquest criteri, juntament amb l’AIC, ens dona una visió més completa de fins a quin punt cada predictor aporta capacitat predictiva real.
+
+Representem les corbes:
+
+```{r}
+plot(roc_simple,
+     legacy.axes = TRUE,
+     col = "steelblue",
+     lwd = 3,
+     asp = 0.5,
+     main = "ROC: Model simple vs múltiple")
+
+lines(roc_mult, col = "darkorange3", lwd = 3)
+legend("bottomright",
+       legend = c("Model simple", "Model múltiple"),
+       col = c("steelblue", "darkorange3"), lwd = 3)
+```
+Les dues corbes són molt similars, i els valors d’AUC gairebé idèntics. Això confirma que la taxa de creixement no aporta informació discriminativa addicional: el model múltiple no “separa” millor els casos positius i negatius que el model simple.
+
+En conjunt, la comparació d’AIC i AUC confirma que la taxa de creixement no millora de manera apreciable la capacitat predictiva del model. Aquest és un exemple de com un predictor pot ser teòricament rellevant però no tenir un efecte detectables en les dades recollides, potser perquè el rang experimental és petit, perquè el soroll és alt o perquè el seu efecte real només es manifesta en combinació amb altres factors no mesurats. En aquests casos, un model més simple és preferible: és més interpretable, més estable i evita sobreajust.

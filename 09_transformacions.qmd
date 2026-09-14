@@ -1,0 +1,411 @@
+---
+title: "Transformació de variables"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+```{r, echo=FALSE, results="hide"}
+#------------------------------------------------------------
+# Dataset temps de duplicació cel·lular
+# amb asimetria i heterocedasticitat realistes
+#------------------------------------------------------------
+set.seed(320)
+n_clons <- 18
+medis <- c("A", "B", "C")
+nutrients <- c("baix", "mitja", "alt")
+
+# Baseline (variabilitat entre clons)
+mu_clone <- log(1.2)
+sigma_clone <- 0.25
+base_clone <- rlnorm(n_clons, meanlog = mu_clone, sdlog = sigma_clone)
+
+# Efectes del medi i del nutrient
+eff_medi <- c(A = 1.0, B = 0.85, C = 1.3)
+eff_nutrient <- c(baix = 1.3, mitja = 1.0, alt = 0.7)
+
+# Diferent asimetria per cada medi (heterocedasticitat)
+sigma_medi <- c(A = 0.3, B = 0.45, C = 0.6)
+
+dades <- expand.grid(
+  clon = factor(seq_len(n_clons)),
+  medi = factor(medis, levels = medis),
+  nutrient = factor(nutrients, levels = nutrients)
+)
+
+# Temps de duplicació amb asimetria controlada per medi
+dades$temps_dupl <- mapply(function(med, nutr, clone_id){
+  base <- base_clone[clone_id]
+  rlnorm(1,
+         meanlog = log(base * eff_medi[med] * eff_nutrient[nutr]),
+         sdlog  = sigma_medi[med])
+}, med = dades$medi, nutr = dades$nutrient, clone_id = as.integer(dades$clon))
+dades$temps_dupl <- round(dades$temps_dupl, 2)
+
+
+# Guardem CSV
+fname <- "datasets/duplicacio/temps_duplicacio.csv"
+write.csv(dades[,c("temps_dupl","medi","nutrient","clon")], fname, row.names = FALSE)
+```
+
+En els capítols anteriors hem vist com aplicar tests paramètrics per comprovar si hi ha diferències significatives entre grups. 
+Aquests tests es basen en una sèrie de **supòsits estadístics** sobre les dades, en particular:\
+- que els residus del model segueixen una distribució normal;\
+- i que les variàncies dels diferents grups són similars (homocedasticitat).
+
+En moltes situacions reals, però, aquests supòsits no es compleixen. Les dades poden estar esbiaixades, tenir valors extrems o presentar variàncies molt diferents entre grups. 
+Això no vol dir que els resultats de l’ANOVA siguin inútils, però la seva fiabilitat disminueix. 
+Per aquest motiu, abans de descartar una anàlisi paramètrica, és habitual intentar **corregir el problema transformant la variable dependent.**
+
+---
+
+## Què és una transformació de variable?
+
+Una **transformació de variables** consisteix a aplicar una funció matemàtica que modifica l’escala de la variable, amb l’objectiu de:\
+- fer que les dades segueixin més bé una distribució normal;\
+- reduir la influència dels valors extrems;\
+- estabilitzar la variància entre grups.
+
+Aquest procés no canvia la informació essencial de l’experiment, sinó que **reexpressa les dades** en una escala més adequada per a l’anàlisi estadística. 
+Un cop transformades les dades, podem repetir l’anàlisi i comprovar si ara es compleixen els supòsits del model.
+
+---
+
+## Exemple: temps de duplicació cel·lular
+
+Considerem un experiment on s’estudia com el **medi de cultiu** i la **concentració de nutrients** afecten el **temps de duplicació de cèl·lules** cultivades en condicions controlades.
+
+Aquest tipus d’experiments són habituals en biologia cel·lular i microbiologia, i els temps de duplicació sovint presenten distribucions asimètriques i variàncies desiguals, ja que el creixement cel·lular és un procés multiplicatiu.
+
+Les dades es guarden en el fitxer `temps_duplicacio.csv`. Carreguem-les i fem una primera inspecció:
+
+```{r}
+# Carreguem el fitxer i revisem el contingut
+df <- read.csv("datasets/duplicacio/temps_duplicacio.csv")
+str(df)
+```
+
+Cada fila correspon a una mesura del **temps de duplicació** (`temps_dupl`) per un determinat **medi** (`medi`), **nivell de nutrient** (`nutrient`) i **clon** (`clon`).  
+
+Preparem les variables categòriques i comprovem el nombre d’observacions per grup:
+
+```{r}
+df$medi <- factor(df$medi)
+df$nutrient <- factor(df$nutrient)
+
+table(df$medi, df$nutrient)
+```
+
+---
+
+### Comprovació dels supòsits del model
+
+Podem començar explorant la **normalitat dins de cada combinació medi × nutrient**, tot i que el més important és la normalitat dels **residus** del model ANOVA.
+
+```{r}
+by(df$temps_dupl, list(df$medi, df$nutrient), shapiro.test)
+```
+
+Veiem que diverses cel·les mostren $p < 0{,}05$, indicant desviacions de la normalitat.  
+Mirem ara els **residus** d’un ANOVA complet:
+
+```{r}
+anova_raw <- aov(temps_dupl ~ medi * nutrient, data = df)
+res <- residuals(anova_raw)
+shapiro.test(res)
+```
+
+i el Q-Q plot:
+
+```{r}
+qqnorm(res); qqline(res, col = "red")
+```
+
+El test de Shapiro–Wilk i el Q–Q plot mostren una desviació clara de la normalitat.  
+També comprovem l'**homogeneïtat de variàncies** amb el test de Levene:
+
+```{r}
+library(car)
+leveneTest(temps_dupl ~ medi * nutrient, data = df)
+```
+
+El resultat indica que les variàncies no són homogènies.
+
+---
+
+## Transformacions
+
+Les transformacions són una eina per adaptar el model a la naturalesa real de les dades sense perdre el significat biològic de l’experiment. Podem intentar si una transformació fa les dades "més normals" o estabilitza la variància.
+
+A continuació veurem alguns exemples habituals.
+
+---
+
+### Transformació logarítmica
+
+La **transformació logarítmica** és útil quan tenim valors positius i una dispersió creixent amb la mitjana. És freqüent en dades que descriuen processos multiplicatius, com ara concentracions, temps, creixement, i en general quan l’histograma mostra una cua cap a la dreta.
+
+- **Objectiu:** Reduir l’asimetria positiva i estabilitzar la variància quan la dispersió augmenta amb la mitjana.\
+- **Aplicació:** `y_trans <- log(y)`.\
+- **Transformació inversa:** `y_original <- exp(y_trans)`.
+
+En el nostre exemple, el temps de duplicació de les cèl·lules és una variable positiva i multiplicativa per naturalesa: els temps no poden ser negatius, i els canvis en les condicions del medi o dels nutrients no afecten el creixement de manera additiva, sinó proporcional (per exemple, un medi pot duplicar o reduir a la meitat la velocitat de creixement).
+
+Això fa que la distribució del temps de duplicació sigui sovint asimètrica cap a la dreta (amb una cua llarga de valors grans).
+Aplicar la transformació logarítmica converteix aquestes diferències relatives en diferències additives, comprimint els valors grans i estabilitzant la variància entre grups.
+
+Podem mirar la distribució dels residus:
+```{r}
+hist(
+  res,
+  breaks = 30,
+  freq = FALSE,
+  col = "lightblue",
+  border = "white",
+  main = "Distribució dels residus",
+  xlab = "Residus del model"
+)
+```
+
+En altres paraules, el logaritme reflecteix millor la dinàmica biològica multiplicativa del creixement cel·lular i permet analitzar les dades amb models lineals de manera més adequada.
+
+També podem mirar la dispersió dels residus respecte a la predicció del model:
+```{r}
+ajustats <- fitted(anova_raw)
+
+plot(
+  ajustats, res,
+  pch = 1, col = "steelblue",
+  main = "Comprovació de l'homogeneïtat de variàncies",
+  xlab = "Valors ajustats",
+  ylab = "Residus"
+)
+```
+
+Apliquem la transformació a la nostra variable quantitativa i afegim una variable transformada al nostre dataset. Mirem si ara cada grup té una distribució compatible amb la normal:
+
+```{r}
+df$log_temps_dupl <- log(df$temps_dupl)
+by(df$log_temps_dupl, list(df$medi, df$nutrient), shapiro.test)
+```
+
+Repetim l’ANOVA amb la variable transformada i comprovem el supòsit de normalitat:
+
+```{r}
+anova_log <- aov(log_temps_dupl ~ medi * nutrient, data = df)
+
+res_log <- residuals(anova_log)
+shapiro.test(res_log)
+```
+amb el Q-Q plot corresponent:
+
+```{r}
+qqnorm(res_log)
+qqline(res_log, col = "blue")
+```
+
+i el supòsit d'homogeneïtat de les variàncies:
+
+```{r}
+leveneTest(log_temps_dupl ~ medi * nutrient, data = df)
+```
+
+Després de la transformació, la normalitat i l’homogeneïtat de les variàncies milloren clarament.  
+Podem per tant interpretar el model amb plena confiança:
+
+```{r}
+summary(anova_log)
+```
+
+A més, podem tornar a expressar les mitjanes calculades pel model en l’escala original aplicant la funció inversa del logaritme, és a dir, l’exponencial:
+
+```{r}
+# Mitjanes estimades en escala log i reexpressió a l’escala original
+mitjanes_log <- model.tables(anova_log, type = "means")$tables
+
+# Per exemple, per a la mitjana total:
+exp(mitjanes_log$`Grand mean`)
+
+```
+
+---
+
+### Transformació amb l’arrel quadrada
+
+Aquesta transformació s’utilitza quan les dades són **comptatges** o **valors petits**, incloent-hi zero.  
+És típica en experiments amb recompte de colònies bacterianes, nombre de cèl·lules, o esdeveniments rars.
+
+- **Objectiu:** Reduir l’asimetria positiva i estabilitzar la variància.\
+- **Aplicació:** `y_trans <- sqrt(y)`\
+- **Transformació inversa:** `y_original <- y_trans^2`
+
+```{r, eval=FALSE}
+# Exemple: recomptes de colònies
+df$sqrt_colonies <- sqrt(df$colonies)
+
+# ANOVA amb dades transformades
+anova_sqrt <- aov(sqrt_colonies ~ tractament, data = df)
+summary(anova_sqrt)
+
+# Reexpressió a l’escala original
+mitjanes_sqrt <- model.tables(anova_sqrt, type = "means")$tables
+
+# Per exemple, per a la mitjana total:
+(mitjanes_sqrt$`Grand mean`)^2
+```
+
+---
+
+### Transformació inversa (recíproca)
+
+S’utilitza quan les dades tenen **valors molt grans** i volem reduir-ne el pes o la influència en el model.  
+És útil en mesures de **temps de reacció**, **velocitat**, **resistències elèctriques**, o processos amb distribucions molt asimètriques.
+Aquesta transformació només és aplicable si totes les observacions són positives i no nul·les.
+
+- **Objectiu:** Reduir fortament la influència dels valors grans.\
+- **Aplicació:** `y_trans <- 1 / y`\
+- **Transformació inversa:** `y_original <- 1 / y_trans`
+
+```{r, eval=FALSE}
+# Exemple: temps de reacció
+df$inv_temps <- 1 / df$temps
+
+anova_inv <- aov(inv_temps ~ condicio, data = df)
+summary(anova_inv)
+
+# Reexpressió a l’escala original
+mitjanes_inv <- model.tables(anova_inv, type = "means")$tables
+
+# Per exemple, per a la mitjana total:
+1/(mitjanes_inv$`Grand mean`)
+```
+
+---
+
+### Transformació angular o arcsinus
+
+Aquesta transformació és apropiada per a **proporcions** o **percentatges**, especialment quan les dades estan entre 0 i 1 i la variància depèn del valor de la mitjana (més gran prop de 0.5 i més petita als extrems). 
+Si les dades són percentatges (0–100), cal dividir-les per 100 abans d’aplicar la transformació.
+És comuna en dades de **percentatge de cèl·lules viables**, **èxit de fecundació**, o **proporció de mostres positives**.
+
+- **Objectiu:** Normalitzar proporcions i estabilitzar la variància.\
+- **Aplicació:** `y_trans <- asin(sqrt(p))`\
+- **Transformació inversa:** `p_original <- (sin(y_trans))^2`
+
+```{r, eval=FALSE}
+# Exemple: proporció de cèl·lules viables (0–1)
+df$asin_proporcio_viables <- asin(sqrt(df$proporcio_viables))
+
+anova_asin <- aov(asin_proporcio_viables ~ condicio, data = df)
+summary(anova_asin)
+
+# Reexpressió a l’escala original (proporció)
+mitjanes_asin <- model.tables(anova_asin, type = "means")$tables
+
+# Per exemple, per a la mitjana total:
+(sin(mitjanes_inv$`Grand mean`))^2
+```
+
+---
+
+### Transformació Box–Cox (transformació de potència general)
+
+Quan no està clar quina transformació és adequada, podem emprar la **transformació Box–Cox**, que estima automàticament el paràmetre òptim de potència (`λ`) per maximitzar la normalitat dels residus.  
+Aquesta transformació és especialment útil en **dades positives** amb **heterocedasticitat** o **asimetria desconeguda**.
+
+- **Objectiu:** Determinar de manera automàtica la millor transformació per estabilitzar la variància i millorar la normalitat.\
+- **Aplicació:** `y_trans <- (y^λ - 1) / λ`, si λ ≠ 0;  i `log(y)` si λ = 0.\
+- **Transformació inversa:**  
+  - si λ ≠ 0 → `y_original <- (λ * y_trans + 1)^(1/λ)`  
+  - si λ = 0 → `y_original <- exp(y_trans)`
+
+La funció `boxcox()` de la llibreria `MASS` explora un conjunt de valors de λ i calcula la versemblança logarítmica per cadascun. Mostra un gràfic on podem veure quin λ maximitza la versemblança (el “millor” valor).
+
+```{r}
+library(MASS)
+
+# Exemple amb el nostre dataset de temps de duplicació
+# Estimació del paràmetre òptim lambda
+boxcox(anova_raw, data=df)
+```
+
+El pic màxim indica el valor òptim de λ. L’interval al voltant del màxim on la corba cau menys d’aproximadament 0.5 unitats pot considerar-se acceptable.
+
+Podem acotar el rang de λ per trobar el valor que correspon al màxim:
+
+```{r}
+bc <- boxcox(anova_raw, data=df, lambda = seq(-0.05, 0, 0.01))
+lambda_opt <- bc$x[which.max(bc$y)]
+lambda_opt
+```
+
+i fer-ho servir per transformar les dades i fer la prova estadística:
+
+```{r}
+# Transformem les dades amb lambda_opt
+
+df$boxcox_temps <- (df$temps_dupl^lambda_opt - 1) / lambda_opt
+
+anova_boxcox <- aov(boxcox_temps ~ medi * nutrient, data = df)
+summary(anova_boxcox)
+```
+
+---
+
+### Resum comparatiu
+
+| Transformació | Tipus de dades | Inversa | Objectiu principal |
+|----------------|----------------|----------|--------------------|
+| **Logarítmica** $y = \log{x}$| Valors positius, processos multiplicatius | $e^{y}$ | Reduir asimetria i estabilitzar variància proporcional |
+| **Arrel quadrada** $y = \sqrt(x)$| Comptatges petits, incloent-hi zero | $y^2$ | Reduir asimetria i estabilitzar variància |
+| **Inversa** $y = 1/x$| Valors molt grans | $1/y$ | Reduir el pes dels valors grans |
+| **Arcsinus** $y = \arcsin{\sqrt{x}}$| Proporcions (0–1) | $(\sin y)^2$ | Normalitzar proporcions i estabilitzar variància |
+| **Box–Cox** $y = (x^\lambda-1)/ \lambda$| Dades positives generals | $(λy + 1)^{1/λ}$ | Trobar la millor transformació automàticament |
+
+---
+
+Aquestes transformacions constitueixen el conjunt d’eines habituals per millorar l’ajust dels models paramètrics.  
+En tots els casos, recorda verificar els supòsits després de transformar i, si cal, aplicar la **transformació inversa** per presentar els resultats en unitats originals.
+
+---
+
+## Limitacions i interpretació dels resultats transformats
+
+L’ús de transformacions és una eina poderosa per adaptar les dades als supòsits dels models paramètrics, però cal aplicar-les amb criteri i interpretar-ne els resultats amb cura. Una transformació pot millorar l’ajust estadístic, però també pot modificar la manera com entenem les diferències entre grups o condicions experimentals.
+
+### Com escollir la transformació
+
+L’elecció de la transformació depèn de la naturalesa biològica de la variable i de la forma de la seva distribució:\
+- Si les dades són positives i mostren una cua cap a la dreta, la transformació logarítmica és sovint adequada (temps, concentracions, intensitats de senyal...).\
+- Si es tracta de comptatges petits o valors discrets, l’arrel quadrada pot reduir l’asimetria.\
+- Si els valors grans distorsionen molt la mitjana, la transformació inversa (recíproca) els redueix.\
+- Si les dades són proporcions o percentatges, la transformació angular (arcsinus) és la més apropiada.\
+- Quan no hi ha un patró clar o volem buscar la millor opció, la transformació de Box–Cox permet determinar automàticament el paràmetre òptim.
+
+En qualsevol cas, la tria ha d’estar guiada per la **comprensió del fenomen experimental** i no només per criteris estadístics.
+
+### Comparar resultats amb i sense transformació
+
+És recomanable comparar l’anàlisi abans i després de la transformació:\
+- Si les conclusions són similars, la transformació ha servit per reforçar la validesa dels resultats.\
+- Si les conclusions canvien substancialment, cal interpretar amb precaució i revisar si la transformació és realment justificada.\
+- Els tests sobre dades transformades solen ser més robustos i menys sensibles als valors extrems, però poden perdre una mica d’intuïció directa.
+
+### Com interpretar mitjanes i intervals de confiança després d’una transformació
+
+Després d’una transformació, les mitjanes i intervals de confiança calculats corresponen a l’escala transformada (log, arrel, etc.), no a la variable original.
+Per tant:\
+- Les diferències en escala logarítmica representen relacions multiplicatives (p. ex. una diferència de $0{,}3$ en log implica un increment d’un factor $\exp(0{,}3)\approx1,35$).\
+- Els intervals de confiança també han de ser transformats inversament si volem expressar-los en unitats originals.
+
+### Reportar resultats "en unitats originals"
+
+Per mantenir la significació biològica, és habitual invertir la transformació per reportar els resultats finals. Això permet expressar mitjanes, efectes i intervals de confiança en les mateixes unitats que les dades originals.
+
+Aquesta reexpressió no canvia les conclusions, però facilita la interpretació dels resultats en termes biològics o experimentals.
+En definitiva, l’objectiu de qualsevol transformació no és alterar el significat de les dades, sinó fer-les més compatibles amb el model i millorar la claredat estadística sense perdre la seva rellevància científica.
