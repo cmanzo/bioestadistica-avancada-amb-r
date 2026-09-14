@@ -1,5 +1,7 @@
 # Bioestadística Avançada amb R
 
+[![DOI](https://zenodo.org/badge/1369733708.svg)](https://doi.org/10.5281/zenodo.22750454)
+
 *Bioestadística Avançada amb R* és el llibre escrit per a l'assignatura de Bioestadística Avançada, del grau de Biotecnologia a la Universitat de Vic – Universitat Central de Catalunya (UVic-UCC). Té l'origen en les classes de l'assignatura, impartides des de l'any 2018.
 
 El llibre pressuposa els coneixements de l'assignatura de Bioestadística bàsica (estadística descriptiva i proves d'hipòtesi per a la comparació de dos grups) i es centra en mètodes més avançats: ANOVA, proves no paramètriques, correlació i regressió, mesures repetides, i una introducció a l'aprenentatge automàtic aplicat a dades biològiques.
@@ -24,4 +26,4 @@ Aquesta obra es distribueix sota la llicència [Creative Commons Reconeixement-N
 
 ## Citació
 
-> Manzo, C. (2026). *Bioestadística Avançada amb R*. Universitat de Vic – Universitat Central de Catalunya. DOI: `[pendent]`
+> Manzo, C. (2026). *Bioestadística Avançada amb R*. Universitat de Vic – Universitat Central de Catalunya. DOI: [10.5281/zenodo.22750454](https://doi.org/10.5281/zenodo.22750454)

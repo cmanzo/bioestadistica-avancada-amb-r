@@ -29,9 +29,13 @@ Aquests apunts són, i probablement seran sempre, un document viu. Aquesta és l
 
 Aquesta obra es distribueix sota la llicència [Creative Commons Reconeixement-NoComercial-CompartirIgual 4.0 Internacional (CC BY-NC-SA 4.0)](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.ca). Sou lliures de compartir i adaptar el material, sempre que en reconegueu l'autoria, no en feu un ús comercial, i distribuïu qualsevol obra derivada amb la mateixa llicència.
 
+::: {.content-visible when-format="html"}
+[![DOI](https://zenodo.org/badge/1369733708.svg)](https://doi.org/10.5281/zenodo.22750454)
+:::
+
 Si voleu citar aquest document:
 
-> Manzo, C. (2026). *Bioestadística Avançada amb R*. Universitat de Vic – Universitat Central de Catalunya. DOI: `[pendent]`
+> Manzo, C. (2026). *Bioestadística Avançada amb R*. Universitat de Vic – Universitat Central de Catalunya. DOI: [10.5281/zenodo.22750454](https://doi.org/10.5281/zenodo.22750454)
 
 Podeu trobar les dades a la carpeta `datasets/` del repositori de GitHub:
 
