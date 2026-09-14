@@ -54,7 +54,7 @@ En anglès a això se li diu **odds**. En català no hi ha un terme únic i esta
 
 ::: {.content-visible when-format="pdf"}
 ```{=latex}
-\begin{examplebox}[title={Curiositat: com se'n diu, d'"odds"?}]
+\begin{examplebox}[title={Curiositat: com se'n diu, d'``odds''?}]
 ```
 
 En anglès a això se li diu **odds**. En català no hi ha un terme únic i estandarditzat: en biomedicina s'ha fet servir *raó d'avantatges*, en estadística general a vegades *raó de possibilitats*, i en el llenguatge col·loquial de les apostes simplement "les probabilitats" (per exemple, "les odds són 3 a 1"). En aquest text continuarem usant *odds* directament, que és el terme més estès a la literatura científica.
