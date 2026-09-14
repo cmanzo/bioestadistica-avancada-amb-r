@@ -11,7 +11,7 @@ format:
     include-in-header: preamble.tex
 ---
 
-Aquest document recull els meus apunts de l’assignatura de Bioestadística Avançada, que imparteixo des de l’any 2018 als estudiants de 3r curs del grau de Biotecnologia.
+Aquest document recull el contingut de l’assignatura de Bioestadística Avançada, que imparteixo des de l’any 2018 als estudiants de 3r curs del grau de Biotecnologia.
 
 El llibre pressuposa els coneixements de l’assignatura de Bioestadística bàsica, la estadistica descriptiva, i les proves d’hipòtesi per a la comparació de dos grups (com la prova $t$ i el seu equivalent no paramètric). No es tornen a explicar aquí, i és recomanable repassar-los abans de començar si no es tenen frescos.
 
