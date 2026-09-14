@@ -99,9 +99,8 @@ Aquesta mateixa trampa apareix en altres escales quotidianes que fem servir sens
 
 ::: {.content-visible when-format="pdf"}
 ```{=latex}
-\begin{examplebox}
+\begin{examplebox}[title={Curiositat: per què "20$~\textdegree$C" no és el doble de "10$~\textdegree$C"}]
 ```
-**Curiositat: per què "20°C" no és el doble de "10°C"**
 
 Dir que "20$~\textdegree$C és el doble de 10$~\textdegree$C" no té cap sentit físic, perquè l'escala Celsius és d'intervalls, no de raó: el seu zero és arbitrari (el punt de congelació de l'aigua), no una absència real de calor. En canvi, en Kelvin sí que té sentit dir-ho: 200 K és, literalment, el doble d'energia tèrmica que 100 K.
 

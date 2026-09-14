@@ -487,9 +487,8 @@ Així, un $\rho$ de Spearman de $0{,}9$ correspon a una $\tau$ d'uns $0{,}71$; u
 
 ::: {.content-visible when-format="pdf"}
 ```{=latex}
-\begin{examplebox}
+\begin{examplebox}[title={Curiositat: per què $\tau$ de Kendall dona valors més petits que $\rho$ de Spearman?}]
 ```
-**Curiositat: per què τ de Kendall dona valors més petits que ρ de Spearman?**
 
 No hi ha res estrany en el mecanisme: $\tau$ i $\rho$ de Spearman compten coses diferents (parelles concordants l'una, diferències de rangs l'altra), de manera que els seus valors numèrics no són directament comparables. Per a dades que segueixen aproximadament una distribució normal bivariant, existeix una relació aproximada entre totes dues:
 
@@ -560,9 +559,8 @@ La lliçó pràctica: abans de treure conclusions d'una correlació o comparaci�
 
 ::: {.content-visible when-format="pdf"}
 ```{=latex}
-\begin{examplebox}
+\begin{examplebox}[title={Curiositat: la paradoxa de Simpson}]
 ```
-**Curiositat: la paradoxa de Simpson**
 
 De vegades, una tendència que es veu clarament en el conjunt de les dades **desapareix o fins i tot s'inverteix** quan es divideixen les dades per grups — un fenomen conegut com la **paradoxa de Simpson**.
 
@@ -601,9 +599,8 @@ Tot i tenir coeficient de correlació linear $r > 0.9$, no hi ha cap mecanisme b
 
 ::: {.content-visible when-format="pdf"}
 ```{=latex}
-\begin{examplebox}
+\begin{examplebox}[title={Curiositat: les correlacions espúries}]
 ```
-**Curiositat: les correlacions espúries**
 
 Una **correlació espúria** és una associació aparent entre dues variables que **no tenen cap relació causal**, però que mostren una correlació alta degut a:
 

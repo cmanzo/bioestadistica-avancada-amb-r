@@ -77,9 +77,8 @@ Un detall simpàtic: molta gent fa servir `42` com a llavor preferida, per la fa
 
 ::: {.content-visible when-format="pdf"}
 ```{=latex}
-\begin{examplebox}
+\begin{examplebox}[title={Curiositat: per què 42?}]
 ```
-**Curiositat: per què `42`?**
 
 El generador de nombres "aleatoris" d'R no és aleatori de veritat: és un algorisme determinista (un *pseudorandom number generator*) que, a partir d'una **llavor** (*seed*), produeix sempre exactament la mateixa seqüència de valors — a qualsevol ordinador, avui o d'aquí a deu anys. És precisament això el que fa útil `set.seed()`: fixar la llavor és el que garanteix la reproduïbilitat.
 
@@ -144,9 +143,8 @@ Així, per a la distribució normal disposem de `rnorm()`, `dnorm()`, `pnorm()` 
 
 ::: {.content-visible when-format="pdf"}
 ```{=latex}
-\begin{notebox}
+\begin{notebox}[title={El patró d/p/q/r a R}]
 ```
-**El patró `d`/`p`/`q`/`r` a R**
 
 Us heu fixat que hem fet servir tant `rnorm()` com `dnorm()`? No és casualitat: R fa servir un patró de noms consistent per treballar amb qualsevol distribució de probabilitat. Per a cada distribució (`norm`, però també `unif`, `binom`, `exp`, `t`, `f`, entre altres) hi ha quatre funcions bessones, que només es diferencien pel prefix:
 

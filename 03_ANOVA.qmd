@@ -131,6 +131,26 @@ df_tots <- df_tots[, c("grup", "medi", "titol")]
 str(df_tots)
 ```
 
+:::: {.content-visible when-format="html"}
+::: {.callout-note}
+## Nota sobre la independència de les dades
+
+En el nostre conjunt de dades estem assumint que les observacions són independents. Tanmateix, hi ha una certa dependència potencial: les mesures es van recollir en bioreactors diferents i al llarg de diversos dies. Malgrat això, com que en aquest exemple hem barrejat totes les observacions i estem considerant únicament l'efecte del medi de cultiu, aquesta dependència queda diluïda. Per tant, és raonable assumir independència a efectes pràctics en aquesta anàlisi. Més endavant, veurem com tractar explícitament la dependència amb ANOVA de mesures repetides.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{notebox}[title={Nota sobre la independència de les dades}]
+```
+
+En el nostre conjunt de dades estem assumint que les observacions són independents. Tanmateix, hi ha una certa dependència potencial: les mesures es van recollir en bioreactors diferents i al llarg de diversos dies. Malgrat això, com que en aquest exemple hem barrejat totes les observacions i estem considerant únicament l'efecte del medi de cultiu, aquesta dependència queda diluïda. Per tant, és raonable assumir independència a efectes pràctics en aquesta anàlisi. Més endavant, veurem com tractar explícitament la dependència amb ANOVA de mesures repetides.
+
+```{=latex}
+\end{notebox}
+```
+:::
+
 Les dades són molt riques i ens permeten abordar una sèrie d’hipòtesis. Comencem amb un problema senzill: **hi ha diferències significatives entre els medis de cultiu? Hi ha almenys un que sigui millor o pitjor que els altres?**
 
 Com ja sabeu, per contestar aquestes preguntes de manera estadísticament correcta hem de fer una **prova estadística**.
@@ -186,9 +206,8 @@ En aquest judici estadístic mai podem demostrar que $H_0$ és veritat; només p
 
 ::: {.content-visible when-format="pdf"}
 ```{=latex}
-\begin{notebox}
+\begin{notebox}[title={Una explicació més intuïtiva}]
 ```
-**Una explicació més intuïtiva**
 
 Podem pensar en la prova d’hipòtesis com un **judici**:
 
