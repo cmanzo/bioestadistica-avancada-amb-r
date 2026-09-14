@@ -16,5 +16,7 @@ _book.zip
 
 # Packaged duplicate of datasets/ (regenerate with: zip -r datasets.zip datasets)
 datasets.zip
-.Rproj.user
+.Rproj.user/
+.Rhistory
+.RData
 .DS_Store
