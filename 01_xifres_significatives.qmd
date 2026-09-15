@@ -114,6 +114,17 @@ sprintf("mitjana = %.1f (DE = %.1f)", mitjana, sd_pesos)
 
 `sprintf()` és especialment útil per generar frases o taules de resultats amb un format consistent, ja que permet controlar exactament el nombre de decimals de cada valor, independentment del que calculin internament les funcions.
 
+`sprintf()` només retorna un text — no l'imprimeix. A la consola es veu igualment, perquè R imprimeix automàticament el resultat de qualsevol línia solta a nivell superior, però dins d'un script (per exemple, executat amb `Rscript`, no de manera interactiva) aquest auto-imprès no passa: cal fer-ho explícit amb `cat()` o `print()`.
+
+`cat()` concatena i imprimeix directament els seus arguments, sense cometes ni informació addicional — és la manera més senzilla de mostrar text i valors junts:
+
+```{r}
+cat("mitjana =", round(mitjana, 1), "\n")
+cat(sprintf("mitjana = %.1f (DE = %.1f)", mitjana, sd_pesos), "\n")
+```
+
+El `"\n"` final és el salt de línia; sense ell, la següent crida a `cat()` continuaria escrivint a la mateixa línia.
+
 ------------------------------------------------------------------------
 
 ## Recomanació pràctica per al curs
