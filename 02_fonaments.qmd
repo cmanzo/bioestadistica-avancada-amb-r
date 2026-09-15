@@ -129,7 +129,9 @@ L'argument `breaks` controla el nombre d'intervals (barres) de l'histograma: com
 ```{r}
 #| eval: false
 hist(dades_carregades[,'simulacio'],
-     breaks = seq(min(dades_carregades$simulacio), max(dades_carregades$simulacio), length.out = 21))
+     breaks = seq(min(dades_carregades$simulacio), 
+                  max(dades_carregades$simulacio), 
+                  length.out = 21))
 ```
 
 Aquí `seq(min, max, length.out = 21)` genera 21 punts equidistants entre el mínim i el màxim de les dades, cosa que garanteix exactament 20 intervals, tots de la mateixa amplada.
