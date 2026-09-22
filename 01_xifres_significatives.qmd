@@ -64,10 +64,8 @@ signif(0.004512, 2)   # 0.0045 (2 xifres significatives)
 
 Quan es combinen mesures amb precisions diferents, el resultat no pot ser més precís que la dada menys precisa:
 
-- **Suma i resta**: el resultat es reporta amb el nombre de *decimals* de la dada amb menys decimals.
-  $$12.11 + 0.3 = 12.41 \rightarrow 12.4$$
-- **Multiplicació i divisió**: el resultat es reporta amb el nombre de *xifres significatives* de la dada amb menys xifres significatives.
-  $$4.56 \times 1.4 = 6.384 \rightarrow 6.4$$
+- **Suma i resta**: el resultat es reporta amb el nombre de *decimals* de la dada amb menys decimals: $12.11 + 0.3 = 12.41 \rightarrow 12.4$.
+- **Multiplicació i divisió**: el resultat es reporta amb el nombre de *xifres significatives* de la dada amb menys xifres significatives: $4.56 \times 1.4 = 6.384 \rightarrow 6.4$.
 
 Aquestes regles són d'origen en ciències experimentals (mesures amb error instrumental), però la lògica —no suggerir més precisió de la que hi ha darrere de les dades— és directament aplicable a l'estadística.
 
