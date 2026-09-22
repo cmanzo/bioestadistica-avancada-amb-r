@@ -83,6 +83,23 @@ ll[["noms"]]     # element amb nom "noms"
 ll$dades$nota    # columna 'nota' del dataframe guardat
 ```
 
+### `[ ]` vs. `[[ ]]`
+
+És important distingir aquests dos operadors, que es comporten de manera diferent:
+
+- **`[ ]`** sempre retorna un objecte del **mateix tipus** que l'original: aplicat a una llista, retorna una **sub-llista**, encara que en seleccionis un sol element. Permet seleccionar diversos elements alhora.
+- **`[[ ]]`** extreu **un únic element**, "despullant-lo" del contenidor: aplicat a una llista, retorna directament el contingut d'aquella posició (el vector, dataframe, etc., no una llista que el conté). No es pot fer servir per seleccionar-ne més d'un.
+
+```{r}
+ll[1]      # llista amb un element: list(vector = c(1, 2, 3))
+ll[[1]]    # el vector en si: c(1, 2, 3)
+
+ll["noms"]     # llista amb un element
+ll[["noms"]]   # el vector de caràcters en si
+```
+
+Regla pràctica: `[[ ]]` per **agafar i treballar amb el contingut** d'un element; `[ ]` per **seleccionar un subconjunt** (que segueix sent el mateix tipus d'estructura). El mateix principi s'aplica als dataframes: `df["nota"]` retorna un dataframe d'una columna, mentre que `df[["nota"]]` (igual que `df$nota`) retorna directament el vector de valors.
+
 ------------------------------------------------------------------------
 
 ## Matrius

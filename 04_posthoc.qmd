@@ -165,19 +165,49 @@ plot(HSD_bioreact)
 
 El gràfic mostra cada diferència de mitjanes amb el seu interval de confiança. Si l’interval no inclou el zero, vol dir que hi ha una diferència significativa. És una manera molt intuïtiva d’interpretar els resultats i d’identificar quins grups es distingeixen realment.
 
+
+:::: {.content-visible when-format="html"}
+::: {.callout-note}
+## Per què no fem directament proves t per parelles amb correcció?
+
+És una pregunta raonable: si correccions com Bonferroni o Holm ja resolen el problema de l'error de tipus I acumulat, per què cal passar per l'ANOVA i fer servir Tukey HSD en lloc de comparar totes les parelles directament?
+
+Hi ha diverses raons:
+
+1. **Potència.** Cada prova *t* per parelles fa servir només les dues mostres implicades per estimar la variabilitat. L'ANOVA, en canvi, combina la variabilitat *dins* de tots els grups alhora (amb molts més graus de llibertat), donant una estimació més precisa ($\operatorname{MS}_{\mathrm{w}}$). Tukey HSD aprofita precisament aquesta estimació combinada, cosa que el fa més potent que aplicar Bonferroni sobre proves *t* fetes de manera independent.
+2. **Una pregunta, una prova.** Quan la pregunta és realment global (*hi ha alguna diferència entre els grups?*), l'ANOVA hi respon directament amb una única prova a nivell $\alpha$, en lloc de combinar el resultat de $\binom{G}{2}$ proves diferents.
+3. **Generalitzable.** El marc de l'ANOVA (descomposició de la variabilitat en components) s'estén de manera natural a dissenys més complexos que veurem més endavant —dos factors, mesures repetides, covariables— mentre que les proves *t* per parelles no s'adapten bé a aquestes situacions.
+
+Per això, l'estratègia habitual és fer primer l'ANOVA com a prova global ("*gatekeeper*") i, només si és significativa, passar a les proves post-hoc com les que acabem de veure per identificar on són les diferències.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{notebox}[title={Per què no fem directament proves t per parelles amb correcció?}]
+```
+
+És una pregunta raonable: si correccions com Bonferroni o Holm ja resolen el problema de l'error de tipus I acumulat, per què cal passar per l'ANOVA i fer servir Tukey HSD en lloc de comparar totes les parelles directament?
+
+Hi ha diverses raons:
+
+1. **Potència.** Cada prova *t* per parelles fa servir només les dues mostres implicades per estimar la variabilitat. L'ANOVA, en canvi, combina la variabilitat *dins* de tots els grups alhora (amb molts més graus de llibertat), donant una estimació més precisa ($\operatorname{MS}_{\mathrm{w}}$). Tukey HSD aprofita precisament aquesta estimació combinada, cosa que el fa més potent que aplicar Bonferroni sobre proves *t* fetes de manera independent.
+2. **Una pregunta, una prova.** Quan la pregunta és realment global (*hi ha alguna diferència entre els grups?*), l'ANOVA hi respon directament amb una única prova a nivell $\alpha$, en lloc de combinar el resultat de $\binom{G}{2}$ proves diferents.
+3. **Generalitzable.** El marc de l'ANOVA (descomposició de la variabilitat en components) s'estén de manera natural a dissenys més complexos que veurem més endavant —dos factors, mesures repetides, covariables— mentre que les proves *t* per parelles no s'adapten bé a aquestes situacions.
+
+Per això, l'estratègia habitual és fer primer l'ANOVA com a prova global ("*gatekeeper*") i, només si és significativa, passar a les proves post-hoc com les que acabem de veure per identificar on són les diferències.
+
+```{=latex}
+\end{notebox}
+```
+:::
+
 ------------------------------------------------------------------------
 
-## Dues preguntes típiques
+## Com escollir quina prova post-hoc fer
 
-1.  Com puc escollir quina prova post-hoc fer?\
 -   Si tens pocs grups (3–4) i només vols comparar algunes parelles concretes, qualsevol prova (Bonferroni, Holm o Tukey) pot ser suficient.\
 -   Si tens molts grups, les proves massa conservadores (com Bonferroni) poden perdre potència i no detectar diferències reals. En aquest cas, Holm o Tukey són opcions més adequades.\
 -   Tukey HSD és la prova més habitual quan es volen avaluar totes les comparacions parell a parell, mantenint el control de l’error global.\
 -   Bonferroni és molt senzilla i segura, però excessivament conservadora. Pot ser útil si hi ha poques comparacions i es vol minimitzar al màxim el risc de falsos positius (per exemple, en estudis clínics).\
 -   Holm (Holm-Bonferroni) és un bon compromís: manté el control de l’error com Bonferroni, però amb més potència estadística.
-
-2.  Per què cal fer primer l’ANOVA? No puc aplicar directament les proves *t* amb correcció?\
--   L’ANOVA serveix per comprovar si hi ha diferències globals entre les mitjanes. Només si hi ha evidència d’aquestes diferències té sentit aplicar les proves post-hoc.\
--   Les correccions com Bonferroni o Holm redueixen el risc d’error de tipus I en comparacions múltiples, però acostumen a ser conservadores.\
--   L’ANOVA és més potent perquè fa un contrast únic sobre totes les mitjanes alhora, utilitzant una estimació comuna de la variància residual. Les proves post-hoc com Tukey HSD parteixen d’aquesta mateixa variància comuna, en lloc de fer moltes proves *t* independents.\
--   A més, l’ANOVA es pot ampliar fàcilment a dissenys més complexos (two-way, mesures repetides, interaccions), cosa que les proves *t* individuals no permeten.
