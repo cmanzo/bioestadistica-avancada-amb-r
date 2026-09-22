@@ -1,0 +1,137 @@
+---
+title: "Xifres significatives i arrodoniment"
+author: "Carlo Manzo"
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: article
+    fontsize: 11pt
+    linestretch: 1.2
+    include-in-header: preamble.tex
+---
+
+Un resultat estadístic ben calculat pot perdre tot el seu valor si es reporta amb un nombre de xifres inadequat: massa xifres suggereixen una precisió que les dades no tenen, i massa poques amaguen informació rellevant. En aquest apèndix repassem les regles bàsiques de xifres significatives i d'arrodoniment, i com aplicar-les quan reportem mitjanes, desviacions estàndard, valors *p* i altres resultats d'anàlisis estadístiques.
+
+------------------------------------------------------------------------
+
+## Què és una xifra significativa
+
+Les **xifres significatives** d'un nombre són aquelles que aporten informació real sobre la seva precisió: tots els dígits coneguts amb certesa més el primer dígit incert (el de l'arrodoniment).
+
+Aquest darrer punt és clau quan les xifres provenen d'una mesura: el nombre de xifres significatives ve determinat per la precisió de l'instrument o del mètode de mesura, no es pot inventar afegint decimals. Si una balança mesura amb una precisió de 0.1 g, un pes s'ha d'anotar com `24.3 g` i no com `24.30 g` ni `24.3482 g`: el darrer dígit reportat ha de ser, com a molt, el primer que porta incertesa, i qualsevol xifra més enllà és soroll, no informació.
+
+Regles per comptar-les:
+
+- Els dígits diferents de zero sempre són significatius (`4.52` té 3 xifres significatives).
+- Els zeros entre dígits significatius ho són (`10.05` té 4 xifres significatives).
+- Els zeros a l'esquerra del primer dígit diferent de zero **no** ho són (`0.0032` té 2 xifres significatives).
+- Els zeros a la dreta, després d'una coma decimal, **sí** ho són (`3.20` té 3 xifres significatives; el zero final indica que la precisió arriba a les centèsimes).
+- Els zeros al final d'un nombre enter sense coma decimal són ambigus (`1500` podria tenir 2, 3 o 4 xifres significatives); la notació científica ho resol (`1.50 x 10^3` té 3 xifres significatives).
+
+En general, la **notació científica** és la manera més neta d'expressar un nombre amb un nombre concret de xifres significatives, perquè totes les xifres de la mantissa són, per definició, significatives: no hi ha zeros ambigus a l'esquerra ni a la dreta que puguin confondre's amb precisió afegida. És especialment útil amb nombres molt grans o molt petits, freqüents en biologia (concentracions, recomptes cel·lulars, valors *p*): `0.0000456` és molt menys llegible i més ambigu que `4.56 x 10^-5`, que deixa clar d'un cop d'ull que té 3 xifres significatives.
+
+------------------------------------------------------------------------
+
+## Arrodoniment
+
+La regla habitual és: si el dígit que es descarta és 5 o més, s'arrodoneix cap amunt; si és menor que 5, cap avall. Amb un 5 exacte al final, el criteri més estès en ciència és el **d'arrodoniment al parell més proper** (*round half to even*, o *banker's rounding*), que evita un biaix sistemàtic cap amunt quan s'arrodoneixen moltes dades.
+
+En R, la funció `round()` fa servir precisament aquest criteri, cosa que sovint sorprèn:
+
+```{r}
+round(0.5)   # 0
+round(1.5)   # 2
+round(2.5)   # 2
+round(0.125, 2)   # 0.12 (i no 0.13)
+```
+
+Això **no és un error**: és el comportament esperat segons l'estàndard IEEE 754 de coma flotant. Cal tenir-ho present quan es comparen arrodoniments fets "a mà" amb els que dona R.
+
+Dues funcions relacionades, útils per a xifres significatives (en comptes de decimals):
+
+```{r}
+signif(1234.567, 3)   # 1230   (3 xifres significatives)
+signif(0.004512, 2)   # 0.0045 (2 xifres significatives)
+```
+
+- `round(x, n)`: arrodoneix a `n` **decimals**.
+- `signif(x, n)`: arrodoneix a `n` **xifres significatives**.
+
+------------------------------------------------------------------------
+
+## Xifres significatives en operacions
+
+Quan es combinen mesures amb precisions diferents, el resultat no pot ser més precís que la dada menys precisa:
+
+- **Suma i resta**: el resultat es reporta amb el nombre de *decimals* de la dada amb menys decimals.
+  $$12.11 + 0.3 = 12.41 \rightarrow 12.4$$
+- **Multiplicació i divisió**: el resultat es reporta amb el nombre de *xifres significatives* de la dada amb menys xifres significatives.
+  $$4.56 \times 1.4 = 6.384 \rightarrow 6.4$$
+
+Aquestes regles són d'origen en ciències experimentals (mesures amb error instrumental), però la lògica —no suggerir més precisió de la que hi ha darrere de les dades— és directament aplicable a l'estadística.
+
+------------------------------------------------------------------------
+
+## Com reportar resultats estadístics
+
+En bioestadística, l'arrodoniment excessiu o insuficient és un error freqüent en informes i articles. Algunes convencions pràctiques:
+
+**Mitjanes i desviacions estàndard.** Es reporten habitualment amb un decimal més que les dades originals. Si el pes s'ha mesurat en grams sencers, la mitjana es reporta amb un decimal (p. ex. `24.3 g`), no amb quatre o cinc.
+
+```{r}
+pesos <- c(23, 25, 24, 26, 22, 25, 24)
+mitjana <- mean(pesos)
+sd_pesos <- sd(pesos)
+round(mitjana, 1)
+round(sd_pesos, 1)
+```
+
+**Valors *p*.** Es reporten habitualment amb 2 o 3 xifres decimals (`p = 0.03`, `p = 0.004`). Per valors molt petits, s'escriu `p < 0.001` en comptes de reportar totes les xifres que dona R (`2.2e-16`). Mai s'escriu `p = 0.000`: cap valor *p* és exactament zero.
+
+```{r}
+p_valor <- 0.00013
+# En un informe:
+ifelse(p_valor < 0.001, "p < 0.001", paste("p =", round(p_valor, 3)))
+```
+
+**Mides de l'efecte i intervals de confiança.** Es reporten amb 2 xifres decimals com a norma general (p. ex. Cohen's d `= 0.45`, IC 95% `[0.12, 0.78]`), tot i que això pot variar segons la magnitud típica de la mètrica.
+
+**Percentatges.** Sovint n'hi ha prou amb un decimal (`34.2%`); en mostres petites, fins i tot amb zero decimals, ja que la incertesa de mostreig sol ser molt més gran que la resolució d'un decimal.
+
+------------------------------------------------------------------------
+
+## Formatar la sortida en R
+
+Per generar text amb un nombre fix de decimals (independentment de si el darrer és un zero, que `round()` no conserva en imprimir), es fan servir `format()` o `sprintf()`:
+
+```{r}
+round(24.30, 1)              # imprimeix 24.3, perd el zero
+format(round(24.30, 1), nsmall = 1)   # "24.3" -> es manté com a text amb 1 decimal
+sprintf("%.2f", 24.3)        # "24.30"
+sprintf("mitjana = %.1f (DE = %.1f)", mitjana, sd_pesos)
+```
+
+`sprintf()` és especialment útil per generar frases o taules de resultats amb un format consistent, ja que permet controlar exactament el nombre de decimals de cada valor, independentment del que calculin internament les funcions.
+
+`sprintf()` només retorna un text — no l'imprimeix. A la consola es veu igualment, perquè R imprimeix automàticament el resultat de qualsevol línia solta a nivell superior, però dins d'un script (per exemple, executat amb `Rscript`, no de manera interactiva) aquest auto-imprès no passa: cal fer-ho explícit amb `cat()` o `print()`.
+
+`cat()` concatena i imprimeix directament els seus arguments, sense cometes ni informació addicional — és la manera més senzilla de mostrar text i valors junts:
+
+```{r}
+cat("mitjana =", round(mitjana, 1), "\n")
+cat(sprintf("mitjana = %.1f (DE = %.1f)", mitjana, sd_pesos), "\n")
+```
+
+El `"\n"` final és el salt de línia; sense ell, la següent crida a `cat()` continuaria escrivint a la mateixa línia.
+
+------------------------------------------------------------------------
+
+## Recomanació pràctica per al curs
+
+En molts exercicis i qüestionaris d'aquesta assignatura se't demanarà explícitament el resultat amb un nombre fix de **decimals** (p. ex. "dona el valor *p* amb 3 decimals") o amb un nombre fix de **xifres significatives** (p. ex. "dona la mitjana amb 3 xifres significatives"). No és el mateix, com hem vist més amunt, i cal fixar-se bé en quin dels dos es demana: és la manera de verificar que el resultat numèric és correcte sense ambigüitat en la correcció, i si el format de la resposta no hi coincideix —decimals en comptes de xifres significatives, o un nombre diferent de xifres— es pot considerar incorrecta encara que el càlcul de fons sigui bo. Val la pena, doncs, llegir bé l'enunciat i ajustar l'arrodoniment abans de respondre, i no arrodonir durant els càlculs intermedis sinó només en el resultat final que es reporta, ja que arrodonir massa aviat pot introduir errors acumulats.
+
+Si l'enunciat no dona cap indicació específica, com a norma general pots fer servir la següent:
+
+- Mitjanes, desviacions estàndard i altres estadístics descriptius: **2 decimals**.
+- Valors *p*: **3 decimals**, o `p < 0.001` si és inferior.

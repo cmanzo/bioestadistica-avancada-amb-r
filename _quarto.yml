@@ -25,6 +25,7 @@ book:
     - 16_xarxes_neur.qmd
   appendices:
     - 00_dades.qmd
+    - 01_xifres_significatives.qmd
     # Formularis de referència (acumulatius, no inclosos al llibre compilat;
     # es distribueixen per separat com a fulls de repàs)
     #- 0x_formulari.qmd

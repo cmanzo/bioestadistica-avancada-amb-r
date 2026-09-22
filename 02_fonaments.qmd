@@ -124,6 +124,18 @@ hist(dades_carregades[,'simulacio'], breaks = 20, freq = FALSE, col = "lightblue
 # Afegim la corba normal teòrica amb mitjana = 5 i sd = 2
 curve(dnorm(x, mean = 5, sd = 2), col = "red", lwd = 2, add = TRUE)
 ```
+L'argument `breaks` controla el nombre d'intervals (barres) de l'histograma: com més gran, més fins són els intervals i més detall es veu de la forma de la distribució, a costa de fer-la més "sorollosa"; com més petit, més suavitzada però amb menys detall. Cal tenir present que quan `breaks` és un únic número, com aquí, R el tracta només com un **suggeriment**: internament fa servir un algorisme (`pretty()`) que tria un nombre d'intervals "bonic" a la vora del que hem demanat, però no necessàriament exacte. Si es vol un nombre exacte d'intervals, o uns límits concrets, cal indicar-los explícitament amb un vector, per exemple amb `seq()`:
+
+```{r}
+#| eval: false
+hist(dades_carregades[,'simulacio'],
+     breaks = seq(min(dades_carregades$simulacio), 
+                  max(dades_carregades$simulacio), 
+                  length.out = 21))
+```
+
+Aquí `seq(min, max, length.out = 21)` genera 21 punts equidistants entre el mínim i el màxim de les dades, cosa que garanteix exactament 20 intervals, tots de la mateixa amplada.
+
 En aquest cas, per representar la distribució normal, hem fet servir la funció `curve()` que genera automàticament una seqüència de valors de $x$ i calcula la funció corresponent en aquests punts per dibuixar la corba.
 
 :::: {.content-visible when-format="html"}
