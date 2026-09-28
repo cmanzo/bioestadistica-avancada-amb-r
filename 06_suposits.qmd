@@ -36,8 +36,25 @@ La variància ha de ser similar entre tots els grups.
 
 ------------------------------------------------------------------------
 
-**Nota sobre la independència de les dades**:
-En el nostre conjunt de dades estem assumint que les observacions són independents. Tanmateix, hi ha una certa dependència potencial: les mesures es van recollir en bioreactors diferents i al llarg de diversos dies. Malgrat això, com que en aquest exemple hem **barrejat totes les observacions** i estem considerant únicament l’efecte del *medi de cultiu*, aquesta dependència queda **diluïda**. Per tant, és raonable assumir independència a efectes pràctics en aquesta anàlisi. Més endavant, veurem com tractar explícitament la dependència amb ANOVA de mesures repetides.
+:::: {.content-visible when-format="html"}
+::: {.callout-note}
+## Nota sobre la independència de les dades
+
+En el nostre conjunt de dades estem assumint que les observacions són independents. Tanmateix, hi ha una certa dependència potencial: les mesures es van recollir en bioreactors diferents i al llarg de diversos dies. Malgrat això, com que en aquest exemple hem **barrejat totes les observacions** i estem considerant únicament l'efecte del *medi de cultiu*, aquesta dependència queda **diluïda**. Per tant, és raonable assumir independència a efectes pràctics en aquesta anàlisi. Més endavant, veurem com tractar explícitament la dependència amb ANOVA de mesures repetides.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{notebox}[title={Nota sobre la independència de les dades}]
+```
+
+En el nostre conjunt de dades estem assumint que les observacions són independents. Tanmateix, hi ha una certa dependència potencial: les mesures es van recollir en bioreactors diferents i al llarg de diversos dies. Malgrat això, com que en aquest exemple hem **barrejat totes les observacions** i estem considerant únicament l'efecte del *medi de cultiu*, aquesta dependència queda **diluïda**. Per tant, és raonable assumir independència a efectes pràctics en aquesta anàlisi. Més endavant, veurem com tractar explícitament la dependència amb ANOVA de mesures repetides.
+
+```{=latex}
+\end{notebox}
+```
+:::
 
 ------------------------------------------------------------------------
 
