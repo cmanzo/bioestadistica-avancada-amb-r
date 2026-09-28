@@ -35,8 +35,8 @@
 }
 
 % Entorns personalitzats
-\newtcolorbox{examplebox}{title=Exemple, colback=notestarchblue!5,colframe=notestarchblue!80}
-\newtcolorbox{notebox}{title=Nota, colback=gray!10,colframe=notestarchgray!80}
+\newtcolorbox{examplebox}[1][]{title=Exemple, colback=notestarchblue!5,colframe=notestarchblue!80, #1}
+\newtcolorbox{notebox}[1][]{title=Nota, colback=gray!10,colframe=notestarchgray!80, #1}
 
 % Millorar listings de codi
 \usepackage{listings}
