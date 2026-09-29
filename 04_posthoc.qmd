@@ -76,7 +76,7 @@ $$\textrm{Rebutjem }H_{0} \textrm{ si}: p\times N_P<\alpha_{\mathrm{FW}}$$ On $N
 En R, la correcció de Bonferroni es pot aplicar directament:
 
 ```{r}
-# Comparacions per parelles sense correcció (no recomanat globalment)
+# Comparacions per parelles amb correcció de Bonferroni
 pairwise.t.test(df_tots$titol, df_tots$medi, p.adjust.method = "bonf")
 ```
 
@@ -110,7 +110,7 @@ on $p_{(i)}$ és el valor $p$ en la posició $i$ dins de l’ordre creixent.
 En R, la podem aplicar directament:
 
 ```{r}
-# Comparacions per parelles sense correcció (no recomanat globalment)
+# Comparacions per parelles amb correcció de Holm
 pairwise.t.test(df_tots$titol, df_tots$medi, p.adjust.method = "holm")
 ```
 
