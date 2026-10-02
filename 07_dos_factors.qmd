@@ -266,9 +266,10 @@ eta_squared(anova2, partial = TRUE)
 ```
 
 Recordem que els valors típics d’interpretació de $\eta_p^2$ són:\
-- 0.01 → efecte petit,\
-- 0.06 → efecte mitjà,\
-- 0.14 → efecte gran.
+- $\eta^2 < 0.01$: efecte molt petit\
+- $0.01 \leq \eta^2 < 0.06$: efecte petit\
+- $0.06 \leq \eta^2 < 0.14$: efecte mitjà\
+- $\eta^2 \geq 0.14$: efecte gran
 
 En el nostre cas, trobem un valor d’$\eta_p^2 = 0{,}04$ per al factor `medi`, consistent amb un efecte petit/mitjà del medi de cultiu sobre el títol, i valors més baixos per a `agitacio` i `medi:agitacio`, coherents amb la seva manca de significació.
 
