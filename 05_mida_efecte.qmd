@@ -34,10 +34,11 @@ $$
 s_p = \sqrt{ \frac{(n_1 - 1)s^2_1 + (n_2 - 1)s^2_2}{n_1 + n_2 - 2} }.
 $$
 
-El Cohen’s $d$ es pot interpretar de manera aproximada amb les regles generals proposades per Cohen:\
-- $d \approx 0.2$: efecte petit\
-- $d \approx 0.5$: efecte mitjà\
-- $d \approx 0.8$: efecte gran
+El Cohen’s $d$ es pot interpretar de manera aproximada amb les regles generals proposades per Cohen (Cohen, J. (1992). A power primer. *Psychological Bulletin*, 112 (1), 155):\
+- $|d| < 0.2$: efecte negligible\
+- $0.2\leq |d| < 0.5$: efecte petit\
+- $0.5\leq |d| < 0.8$: efecte mitjà\
+- $|d| \geq 0.8$: efecte gran
 
 Per exemple, un $d = 0.8$ indica que les dues mitjanes difereixen en gairebé una desviació estàndard, cosa que reflecteix una diferència clara i rellevant.
 
@@ -87,10 +88,11 @@ on $\operatorname{SS}_{\textrm{b}}$ és la suma de quadrats entre grups i $\oper
 
 Aquest índex respon a la pregunta: “En general, el factor té un efecte rellevant sobre la variable dependent?”
 
-A nivell orientatiu, Cohen va proposar aquests llindars:\
-- $\eta^2 \approx 0.01$: efecte petit\
-- $\eta^2 \approx 0.06$: efecte mitjà\
-- $\eta^2 \approx 0.14$: efecte gran
+A nivell orientatiu, es poden fer servir els llindars de Field (Field, A. (2013). Discovering Statistics Using IBM SPSS Statistics (4a ed.). Sage: London):\
+- $\eta^2 < 0.01$: efecte molt petit\
+- $0.01 \leq \eta^2 < 0.06$: efecte petit\
+- $0.06 \leq \eta^2 < 0.14$: efecte mitjà\
+- $\eta^2 \geq 0.14$: efecte gran
 
 En R, podem calcular $\eta^2$ fàcilment amb la funció `eta_squared` del paquet **`effectsize`** que s'aplica directament als resultats de l'ANOVA:
 
