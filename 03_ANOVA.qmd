@@ -131,6 +131,20 @@ df_tots <- df_tots[, c("grup", "medi", "titol")]
 str(df_tots)
 ```
 
+Les dades són molt riques i ens permeten abordar una sèrie d’hipòtesis. Comencem amb un problema senzill: **hi ha diferències significatives entre els medis de cultiu? Hi ha almenys un que sigui millor o pitjor que els altres?**
+
+Com ja sabeu, per contestar aquestes preguntes de manera estadísticament correcta hem de fer una **prova estadística**.
+
+------------------------------------------------------------------------
+
+## Prova d’hipòtesis
+
+Podem reformular la nostra pregunta com: *hi ha almenys un medi que produeix un títol més alt que els altres?* Aquesta pregunta té dues possibles respostes:\
+- Tots els medis produeixen un títol equivalent.\
+- Almenys un medi produeix un títol diferent dels altres.
+
+Típicament, com en l’exemple, cada grup de dades té un conjunt de valors i representa una **mostra** d’una població amb una distribució subjacent. De moment assumirem que aquesta distribució és normal (més endavant veurem com comprovar-ho).
+
 :::: {.content-visible when-format="html"}
 ::: {.callout-note}
 ## Nota sobre la independència de les dades
@@ -151,20 +165,6 @@ En el nostre conjunt de dades estem assumint que les observacions són independe
 ```
 :::
 
-Les dades són molt riques i ens permeten abordar una sèrie d’hipòtesis. Comencem amb un problema senzill: **hi ha diferències significatives entre els medis de cultiu? Hi ha almenys un que sigui millor o pitjor que els altres?**
-
-Com ja sabeu, per contestar aquestes preguntes de manera estadísticament correcta hem de fer una **prova estadística**.
-
-------------------------------------------------------------------------
-
-## Prova d’hipòtesis
-
-Podem reformular la nostra pregunta com: *hi ha almenys un medi que produeix un títol més alt que els altres?* Aquesta pregunta té dues possibles respostes:\
-- Tots els medis produeixen un títol equivalent.\
-- Almenys un medi produeix un títol diferent dels altres.
-
-Típicament, com en l’exemple, cada grup de dades té un conjunt de valors i representa una **mostra** d’una població amb una distribució subjacent. De moment assumirem que aquesta distribució és normal (més endavant veurem com comprovar-ho).
-
 Volem contestar aquesta pregunta respecte a un **paràmetre de la població**, en aquest cas la mitjana. Per tant, podem reformular els enunciats com:\
 - Les mitjanes de les poblacions són iguals.\
 - Almenys una de les poblacions té una mitjana diferent.
@@ -181,7 +181,7 @@ Parlarem de:\
 
 Per prendre la decisió definim un **estadístic de prova**, un valor calculat a partir de les dades que té una **distribució coneguda sota** $H_0$. Aleshores, decidim rebutjar o no $H_0$ comparant l’estadístic amb una **regió crítica** (valors “extrems”), associada a un **nivell de significació** $\alpha$.
 
-EL nivell de significació $\alpha$ és la probabilitat de **rebutjar** $H_0$ quan $H_0$ és certa o **error de tipus I**. Per exemple, $\alpha = 0{,}05$ indica que acceptem un 5% de risc de falsos positius (afirmar que el medi té efecte quan en realitat no en té).
+El nivell de significació $\alpha$ és la probabilitat de **rebutjar** $H_0$ quan $H_0$ és certa o **error de tipus I**. Per exemple, $\alpha = 0{,}05$ indica que acceptem un 5% de risc de falsos positius (afirmar que el medi té efecte quan en realitat no en té).
 
 A la pràctica, en lloc de mirar només si l’estadístic cau dins la regió crítica, es calcula la probabilitat associada al valor obtingut. Aquesta probabilitat rep el nom de **valor** $p$ ($p$-value). Si el valor $p$ és inferior al nivell de significació $\alpha$, rebutgem $H_0$.
 
@@ -517,26 +517,26 @@ anova_bioreact <- aov(df_tots$titol ~ df_tots$medi)
 summary(anova_bioreact)
 ```
 
-La prova ANOVA indica que, a un nivell de significació del 5% ($\alpha = 0{,}05$), hi ha diferències significatives entre els medis de cultiu ($F = 4{,}44$, $p = 0{,}016$). A la taula de resultats això queda remarcat amb el símbol `*`, que assenyala que el valor $p$ és inferior a $\alpha$. Això vol dir que, amb un nivell de significació de $\alpha = 0.05$, podem rebutjar la hipòtesi nul·la i concloure que almenys un dels medis produeix un títol diferent respecte als altres.
+La prova ANOVA indica que, a un nivell de significació del 5% ($\alpha = 0{,}05$), hi ha diferències significatives entre els medis de cultiu ($F = 7{,}98$, $p < 0{,}001$). A la taula de resultats, R marca automàticament la fila amb un nombre d'asteriscos que depèn de la magnitud del valor $p$ (`***` si $p<0{,}001$, `**` si $p<0{,}01$, `*` si $p<0{,}05$, `.` si $p<0{,}1$); en el nostre cas, com que $p < 0{,}001$, la fila queda marcada amb `***`. En qualsevol cas, el que importa per decidir és que el valor $p$ sigui inferior a $\alpha$, no el nombre d'asteriscos en si. Això vol dir que, amb un nivell de significació de $\alpha = 0.05$, podem rebutjar la hipòtesi nul·la i concloure que almenys un dels medis produeix un títol diferent respecte als altres.
 
-També podem veure **gràficament** el resultat de la prova. La figura següent mostra la distribució $F$ de Fisher-Snedecor amb graus de llibertat $(2, 57)$, corresponent a la nostra ANOVA. La corba negra representa la densitat de probabilitat de l’estadístic $F$ sota la hipòtesi nul·la.
+També podem veure **gràficament** el resultat de la prova. La figura següent mostra la distribució $F$ de Fisher-Snedecor amb graus de llibertat $(2, 417)$, corresponent a la nostra ANOVA. La corba negra representa la densitat de probabilitat de l’estadístic $F$ sota la hipòtesi nul·la.
 
-La línia vermella discontínua indica el valor crític $F_{crit} \approx 3{,}16$ per a un nivell de significació $\alpha = 0{,}05$. La zona ombrejada en vermell a la dreta és la regió crítica, que correspon a una àrea sota la corba igual a $\alpha = 0{,}05$. Qualsevol valor $F > F_{crit}$ implica rebutjar $H_0$, ja que el valor $p$ corresponent (l’àrea sota la corba a la dreta d’aquest valor) és inferior a $\alpha$.
+La línia vermella discontínua indica el valor crític $F_{crit} \approx 3{,}02$ per a un nivell de significació $\alpha = 0{,}05$. La zona ombrejada en vermell a la dreta és la regió crítica, que correspon a una àrea sota la corba igual a $\alpha = 0{,}05$. Qualsevol valor $F > F_{crit}$ implica rebutjar $H_0$, ja que el valor $p$ corresponent (l’àrea sota la corba a la dreta d’aquest valor) és inferior a $\alpha$.
 
-La línia grisa discontínua marca el valor calculat $F = 4{,}44$ del nostre conjunt de dades. Com que aquest valor cau dins la regió crítica, rebutgem $H_0$ i concloem que hi ha diferències significatives entre almenys dos dels medis de cultiu.
+La línia grisa discontínua marca el valor calculat $F = 7{,}98$ del nostre conjunt de dades. Com que aquest valor cau dins la regió crítica, rebutgem $H_0$ i concloem que hi ha diferències significatives entre almenys dos dels medis de cultiu.
 
 ```{r, echo=FALSE}
 # Paràmetres
 alpha <- 0.05
-df1 <- 2
-df2 <- 57
-fcrit <- qf(1 - alpha, df1, df2)   # valor crític a la dreta
 
 s = summary(anova_bioreact)
-fcalc <- s[[1]]$`F value`
+df1 <- s[[1]]$Df[1]
+df2 <- s[[1]]$Df[2]
+fcrit <- qf(1 - alpha, df1, df2)   # valor crític a la dreta
+fcalc <- s[[1]]$`F value`[1]
 
-# Seqüència per a la corba
-x <- seq(0, 6, length = 1000)
+# Seqüència per a la corba (assegurem que inclou el valor calculat)
+x <- seq(0, max(6, fcalc * 1.15), length = 1000)
 y <- df(x, df1, df2)
 
 # Dibuix bàsic

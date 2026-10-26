@@ -261,7 +261,7 @@ mitjanes_sqrt <- model.tables(anova_sqrt, type = "means")$tables
 
 ---
 
-### Transformació inversa (recíproca)
+### Transformació recíproca
 
 S’utilitza quan les dades tenen **valors molt grans** i volem reduir-ne el pes o la influència en el model.  
 És útil en mesures de **temps de reacció**, **velocitat**, **resistències elèctriques**, o processos amb distribucions molt asimètriques.
@@ -355,6 +355,32 @@ anova_boxcox <- aov(boxcox_temps ~ medi * nutrient, data = df)
 summary(anova_boxcox)
 ```
 
+#### Una manera més directa: `powerTransform()`
+
+Buscar λ "a ull" amb `boxcox()` (primer un rang ampli, després un de més estret al voltant del pic) és útil per entendre què s'està optimitzant, però a la pràctica sol fer-se d'una manera més directa amb la funció `powerTransform()` de la llibreria `car`: estima λ per màxima versemblança en un sol pas, sense graella ni gràfic.
+
+```{r}
+library(car)
+
+pt <- powerTransform(anova_raw)
+summary(pt)
+```
+
+`pt$lambda` dona directament el valor òptim (ha de ser molt similar al `lambda_opt` que hem trobat abans amb `boxcox()`), i `summary(pt)` hi afegeix un interval de confiança per λ i un test de versemblança que respon directament si λ=0 (és a dir, el logaritme) seria una transformació prou bona.
+
+Un cop tenim λ, apliquem la transformació amb `bcPower()`, en comptes de la fórmula manual:
+
+```{r}
+df$boxcox_temps2 <- bcPower(df$temps_dupl, pt$lambda)
+
+anova_boxcox2 <- aov(boxcox_temps2 ~ medi * nutrient, data = df)
+summary(anova_boxcox2)
+```
+
+::: {.callout-note}
+`bcPower()` només té sentit amb dades estrictament positives (com `temps_dupl`). Si en algun moment treballeu amb dades que inclouen zeros o valors negatius, `car` ofereix una variant anomenada `bcnPower()` ("Box-Cox amb negatius permesos"), amb la seva pròpia inversa `bcnPowerInverse()`. No l'expliquem en detall aquí, però val la pena saber que existeix si us trobeu amb aquest cas.
+:::
+
 ---
 
 ### Resum comparatiu
@@ -363,7 +389,7 @@ summary(anova_boxcox)
 |----------------|----------------|----------|--------------------|
 | **Logarítmica** $y = \log{x}$| Valors positius, processos multiplicatius | $e^{y}$ | Reduir asimetria i estabilitzar variància proporcional |
 | **Arrel quadrada** $y = \sqrt(x)$| Comptatges petits, incloent-hi zero | $y^2$ | Reduir asimetria i estabilitzar variància |
-| **Inversa** $y = 1/x$| Valors molt grans | $1/y$ | Reduir el pes dels valors grans |
+| **Recíproca** $y = 1/x$| Valors molt grans | $1/y$ | Reduir el pes dels valors grans |
 | **Arcsinus** $y = \arcsin{\sqrt{x}}$| Proporcions (0–1) | $(\sin y)^2$ | Normalitzar proporcions i estabilitzar variància |
 | **Box–Cox** $y = (x^\lambda-1)/ \lambda$| Dades positives generals | $(λy + 1)^{1/λ}$ | Trobar la millor transformació automàticament |
 
@@ -383,7 +409,7 @@ L’ús de transformacions és una eina poderosa per adaptar les dades als supò
 L’elecció de la transformació depèn de la naturalesa biològica de la variable i de la forma de la seva distribució:\
 - Si les dades són positives i mostren una cua cap a la dreta, la transformació logarítmica és sovint adequada (temps, concentracions, intensitats de senyal...).\
 - Si es tracta de comptatges petits o valors discrets, l’arrel quadrada pot reduir l’asimetria.\
-- Si els valors grans distorsionen molt la mitjana, la transformació inversa (recíproca) els redueix.\
+- Si els valors grans distorsionen molt la mitjana, la transformació recíproca els redueix.\
 - Si les dades són proporcions o percentatges, la transformació angular (arcsinus) és la més apropiada.\
 - Quan no hi ha un patró clar o volem buscar la millor opció, la transformació de Box–Cox permet determinar automàticament el paràmetre òptim.
 
