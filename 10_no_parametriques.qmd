@@ -371,7 +371,7 @@ i amb la prova de Kruskal–Wallis:
 kw <- kruskal.test(temps_dupl~medi, data=df_dupl)
 kw
 ```
-Veiem que, encara que les dues proves són consistents (arriben a la mateixa conclusió qualitativa), el valor $p$ del test de Kruskal–Wallis és un ordre de magnitud més alt del de la prova ANOVA, cosa que reflecteix la seva major robustesa davant asimetries i valors extrems.
+Veiem que, encara que les dues proves són consistents (arriben a la mateixa conclusió qualitativa), el valor $p$ del test de Kruskal–Wallis és un ordre de magnitud més alt del de la prova ANOVA. Aquest patró és habitual (però no garantit) quan hi ha asimetria o valors extrems, ja que Kruskal–Wallis hi és menys sensible; no és, però, una conseqüència automàtica de la robustesa del test —en altres casos, els outliers poden inflar la variància dins grups de l'ANOVA i fer-lo encara menys potent que Kruskal–Wallis.
 
 Com podem veure en els gràfics següents, els rangs redueixen l’efecte dels valors extrems (tots els rangs estan dins d’intervals semblants) i fan que les variàncies entre grups siguin més comparables:
 
