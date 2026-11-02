@@ -107,6 +107,7 @@ main = "Escala ordinal (1-4)",
 ylab = "Intensitat GFP",
 xlab = "Construcció")
 ```
+
 ---
 
 ### Prova de Kruskal-Wallis
@@ -156,7 +157,7 @@ En el nostre exemple, $\epsilon^2 \approx 0.23$, cosa que correspon a un efecte 
 
 ## Comparacions post-hoc
 
-Quan la prova de Kruskal–Wallis resulta significativa, sabem que almenys un grup difereix dels altres, però no sabem quin o quins. Per determinar entre quins grups hi ha diferències significatives, cal aplicar **proves post-hoc** de comparació parell-a-parell (*pairwise comparisons*).
+Com hem vist, un resultat significatiu de Kruskal–Wallis no ens diu quins grups concrets difereixen. Per esbrinar-ho, cal aplicar **proves post-hoc** de comparació parell-a-parell (*pairwise comparisons*).
 
 ---
 

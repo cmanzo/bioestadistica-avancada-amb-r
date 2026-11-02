@@ -145,7 +145,7 @@ W <- (Q) / (S * (G - 1))
 W
 ```
 
-Com que el valor de $p$ és significatiu i $W$ indica un efecte gran, podem afirmar que hi ha diferències rellevants entre tractaments.
+Com que el valor de $p$ és significatiu i $W$ se situa entre un efecte mitjà i gran, podem afirmar que hi ha diferències rellevants entre tractaments.
 
 ### Post hoc
 
