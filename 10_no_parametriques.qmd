@@ -117,10 +117,11 @@ Les dades de les escales de raó i d'intervalls són numèriques i poden analitz
 
 ---
 
-#### Mesura ordinal (percepció subjectiva) {.unlisted .unnumbered}
+#### Mesura ordinal (indicador per categories) {.unlisted .unnumbered}
 
-Demanem a un grup de tècnics que classifiquin les incubadores de "la més freda" a "la més calenta", basant-se en la seva sensació al tacte del vidre o del flux d’aire.
-En aquest cas, només podem confiar en l’ordre (sabem quina incubadora sembla més calenta que una altra), però no en la magnitud de la diferència entre elles. No tindria sentit parlar de "10 graus més calenta": només sabem que és més calenta.
+En lloc del sensor digital, imaginem ara que cada incubadora porta enganxada una **banda termocromàtica** (un indicador de cristall líquid, com els que es fan servir en termòmetres de nevera o en alguns controls de fermentació), que canvia de color segons la franja de temperatura: blau per sota de 30$~\textdegree$C, verd entre 30 i 35$~\textdegree$C, groc entre 35 i 40$~\textdegree$C, vermell per sobre de 40$~\textdegree$C.
+
+El tècnic només pot llegir el color —la categoria— que mostra la banda en cada incubadora. Sap que una incubadora "vermella" és més calenta que una "groga", i aquesta més calenta que una "verda", però no sap si la diferència real de temperatura entre una franja i la següent és de 2$~\textdegree$C o de 8$~\textdegree$C: només en coneix l’ordre, no la magnitud exacta de les diferències.
 
 Aquest segon tipus de dades s’anomena **escala ordinal**.
 No podem calcular diferències ni mitjanes en sentit numèric, però sí podem comparar els ordres relatius. És aquí on les proves no paramètriques esdevenen imprescindibles.
