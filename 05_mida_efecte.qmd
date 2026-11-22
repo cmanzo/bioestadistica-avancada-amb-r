@@ -70,7 +70,25 @@ resultat_d
 ```
 En aquest cas, el Cohen’s $d$ dona un valor negatiu, ja que el títol mitjà del medi M1 és més petit que el del M3. En valor absolut, el resultat correspon a un efecte mitjà, la qual cosa indica una diferència consistent entre aquests dos medis.
 
-**Nota**: hem tornat a definir la variable medi com a factor perquè els fitxers `.csv` només guarden les categories com a text i no com a factors. 
+:::: {.content-visible when-format="html"}
+::: {.callout-note}
+## Per què cal tornar a definir els factors
+
+Hem tornat a definir la variable `medi` com a factor perquè els fitxers `.csv` només guarden les categories com a text i no com a factors.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{notebox}[title={Per què cal tornar a definir els factors}]
+```
+
+Hem tornat a definir la variable `medi` com a factor perquè els fitxers `.csv` només guarden les categories com a text i no com a factors.
+
+```{=latex}
+\end{notebox}
+```
+:::
 
 ------------------------------------------------------------------------
 

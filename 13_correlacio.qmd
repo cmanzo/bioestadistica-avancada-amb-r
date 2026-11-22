@@ -154,7 +154,25 @@ par(mfrow = c(1, 1))
 És important remarcar que el coeficient $r$ **no mesura la pendent** de la relació, sinó **com de ben alineats** estan els punts al voltant d’una recta.  
 Un núvol de punts molt pròxim a una recta, independentment de si és més inclinada o més plana, tindrà una correlació forta.
 
-**Nota:** un valor $r = 0$ **no implica independència** entre les variables. Pot existir una relació clara però **no lineal**, com en una resposta sigmoide o parabòlica, que Pearson no detecta.
+:::: {.content-visible when-format="html"}
+::: {.callout-note}
+## $r = 0$ no implica independència
+
+Un valor $r = 0$ **no implica independència** entre les variables. Pot existir una relació clara però **no lineal**, com en una resposta sigmoide o parabòlica, que Pearson no detecta.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{notebox}[title={r = 0 no implica independència}]
+```
+
+Un valor $r = 0$ **no implica independència** entre les variables. Pot existir una relació clara però **no lineal**, com en una resposta sigmoide o parabòlica, que Pearson no detecta.
+
+```{=latex}
+\end{notebox}
+```
+:::
 
 ---
 
@@ -295,7 +313,25 @@ logit10 <- function(p) log10((p + 1e-12) / (1 - p + 1e-12))
 
 on els valors `1e-12` eviten que hi puguin haver valors infinits. Aquesta astúcia és habitual en dades biològiques, on sovint hi ha saturacions properes a 0 o 1.
 
-**Nota**: en estadística, el logit està definit habitualment amb el logaritme natural. Aquí fem servir el logaritme base 10 perquè la representació és més intuïtiva en escala logarítmica de concentracions.
+:::: {.content-visible when-format="html"}
+::: {.callout-note}
+## Logit en base 10, no en base natural
+
+En estadística, el logit està definit habitualment amb el logaritme natural. Aquí fem servir el logaritme base 10 perquè la representació és més intuïtiva en escala logarítmica de concentracions.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{notebox}[title={Logit en base 10, no en base natural}]
+```
+
+En estadística, el logit està definit habitualment amb el logaritme natural. Aquí fem servir el logaritme base 10 perquè la representació és més intuïtiva en escala logarítmica de concentracions.
+
+```{=latex}
+\end{notebox}
+```
+:::
 
 
 Prenent la **logit base 10** de la resposta $R^*$:
@@ -473,30 +509,30 @@ La correlació de Kendall detecta la dependència monòtona però sol ser **més
 
 :::: {.content-visible when-format="html"}
 ::: {.callout-tip}
-## Curiositat: per què τ de Kendall dona valors més petits que ρ de Spearman?
+## Curiositat: per què τ de Kendall dona valors més petits que ρ?
 
-No hi ha res estrany en el mecanisme: $\tau$ i $\rho$ de Spearman compten coses diferents (parelles concordants l'una, diferències de rangs l'altra), de manera que els seus valors numèrics no són directament comparables. Per a dades que segueixen aproximadament una distribució normal bivariant, existeix una relació aproximada entre totes dues:
+No hi ha res estrany en el mecanisme: $\tau$ i $\rho$ compten coses diferents (parelles concordants l'una, la posició dels punts respecte a una recta l'altra), de manera que els seus valors numèrics no són directament comparables. Per a dades que segueixen aproximadament una distribució normal bivariant, existeix una relació aproximada entre $\tau$ i el coeficient de correlació de **Pearson** $\rho$ de les dues variables (no el de Spearman):
 
 $$
 \tau \approx \frac{2}{\pi} \arcsin(\rho)
 $$
 
-Així, un $\rho$ de Spearman de $0{,}9$ correspon a una $\tau$ d'uns $0{,}71$; un $\rho$ de $0{,}5$ correspon a una $\tau$ d'uns $0{,}33$. La diferència de magnitud, doncs, no vol dir que Kendall "trobi menys relació" — és, simplement, una escala diferent.
+Així, un $\rho$ de Pearson de $0{,}9$ correspon a una $\tau$ d'uns $0{,}71$; un $\rho$ de $0{,}5$ correspon a una $\tau$ d'uns $0{,}33$. La diferència de magnitud entre $\tau$ i $\rho$, doncs, no vol dir que Kendall "trobi menys relació" — és, simplement, una escala diferent.
 :::
 ::::
 
 ::: {.content-visible when-format="pdf"}
 ```{=latex}
-\begin{examplebox}[title={Curiositat: per què $\tau$ de Kendall dona valors més petits que $\rho$ de Spearman?}]
+\begin{examplebox}[title={Curiositat: per què $\tau$ de Kendall dona valors més petits que $\rho$?}]
 ```
 
-No hi ha res estrany en el mecanisme: $\tau$ i $\rho$ de Spearman compten coses diferents (parelles concordants l'una, diferències de rangs l'altra), de manera que els seus valors numèrics no són directament comparables. Per a dades que segueixen aproximadament una distribució normal bivariant, existeix una relació aproximada entre totes dues:
+No hi ha res estrany en el mecanisme: $\tau$ i $\rho$ compten coses diferents (parelles concordants l'una, la posició dels punts respecte a una recta l'altra), de manera que els seus valors numèrics no són directament comparables. Per a dades que segueixen aproximadament una distribució normal bivariant, existeix una relació aproximada entre $\tau$ i el coeficient de correlació de **Pearson** $\rho$ de les dues variables (no el de Spearman):
 
 $$
 \tau \approx \frac{2}{\pi} \arcsin(\rho)
 $$
 
-Així, un $\rho$ de Spearman de $0{,}9$ correspon a una $\tau$ d'uns $0{,}71$; un $\rho$ de $0{,}5$ correspon a una $\tau$ d'uns $0{,}33$. La diferència de magnitud, doncs, no vol dir que Kendall "trobi menys relació" — és, simplement, una escala diferent.
+Així, un $\rho$ de Pearson de $0{,}9$ correspon a una $\tau$ d'uns $0{,}71$; un $\rho$ de $0{,}5$ correspon a una $\tau$ d'uns $0{,}33$. La diferència de magnitud entre $\tau$ i $\rho$, doncs, no vol dir que Kendall "trobi menys relació" — és, simplement, una escala diferent.
 
 ```{=latex}
 \end{examplebox}

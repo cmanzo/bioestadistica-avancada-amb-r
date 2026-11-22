@@ -355,7 +355,25 @@ Tipicament, la sortida de `summary()` inclou dos (o tres) blocs:\
 - `Error: bioreactor`: informa la variabilitat **entre subjectes** (no és el contrast que t’interessa per al medi).\
 - `Error: bioreactor:medi`: aquí apareix la fila **`medi`** amb els valors `Df`, `Sum Sq`, `Mean Sq`, `F value` i `Pr(>F)`. Aquest és el **contrast principal**: prova si hi ha diferències entre nivells de *medi* controlant la variabilitat entre bioreactors.
 
-**Nota**: Si tinguéssim repeticions dins de cada combinació subjecte $\times$ condició ($n_{ij}\neq 1$), apareixeria un nou bloc en la sortida de l’ANOVA, sovint anomenat `Error: Within`. Aquest bloc recull la variabilitat entre repeticions dins de cada cel·la (és a dir, dins de cada combinació de subjecte i condició).
+:::: {.content-visible when-format="html"}
+::: {.callout-note}
+## Avançament: el bloc `Error: Within`
+
+Si tinguéssim repeticions dins de cada combinació subjecte $\times$ condició ($n_{ij}\neq 1$), apareixeria un nou bloc en la sortida de l’ANOVA, sovint anomenat `Error: Within`. Aquest bloc recull la variabilitat entre repeticions dins de cada cel·la (és a dir, dins de cada combinació de subjecte i condició).
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{notebox}[title={Avançament: el bloc Error: Within}]
+```
+
+Si tinguéssim repeticions dins de cada combinació subjecte $\times$ condició ($n_{ij}\neq 1$), apareixeria un nou bloc en la sortida de l’ANOVA, sovint anomenat `Error: Within`. Aquest bloc recull la variabilitat entre repeticions dins de cada cel·la (és a dir, dins de cada combinació de subjecte i condició).
+
+```{=latex}
+\end{notebox}
+```
+:::
 
 Veiem que el valor $p > 0.05$, no podem rebutjar la hipòtesi nul·la: amb les restriccions de data i agitació, tenint en compte possibles diferències entre els bioreactors, els medis no són significativament diferents.
 

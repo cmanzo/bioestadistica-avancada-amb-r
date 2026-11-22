@@ -53,7 +53,25 @@ $$ \hat{y} = \sigma(z)$$
 és un valor entre 0 i 1 interpretable com a **probabilitat**. 
 La funció sigmoide actua com un mecanisme d’activació suau: quan el valor $z$ és prou alt, la sortida s’apropa a 1; quan és prou baix, s’apropa a 0. Aquest comportament és, de manera molt simplificada, anàleg a la resposta d’una neurona biològica, que s’“activa” quan el seu potencial d’acció supera un llindar.
 
-**Nota:** La funció sigmoide és, matemàticament, la mateixa funció logística que hem utilitzat en regressió logística. En l’àmbit de les xarxes neuronals és habitual anomenar-la *sigmoid*, mentre que en estadística tradicional es fa servir el terme *logistic*. La funció, però, és exactament la mateixa.
+:::: {.content-visible when-format="html"}
+::: {.callout-note}
+## Sigmoide o logística: la mateixa funció
+
+La funció sigmoide és, matemàticament, la mateixa funció logística que hem utilitzat en regressió logística. En l’àmbit de les xarxes neuronals és habitual anomenar-la *sigmoid*, mentre que en estadística tradicional es fa servir el terme *logistic*. La funció, però, és exactament la mateixa.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{notebox}[title={Sigmoide o logística: la mateixa funció}]
+```
+
+La funció sigmoide és, matemàticament, la mateixa funció logística que hem utilitzat en regressió logística. En l’àmbit de les xarxes neuronals és habitual anomenar-la *sigmoid*, mentre que en estadística tradicional es fa servir el terme *logistic*. La funció, però, és exactament la mateixa.
+
+```{=latex}
+\end{notebox}
+```
+:::
 
 ---
 
@@ -152,7 +170,25 @@ $$ w \leftarrow  w - \eta \,\operatorname{error} \, x $$
 
 on $\eta$ és el *learning rate*, que controla com de ràpid modifiquem els pesos en funció de l’error. La seva elecció és crucial per garantir la convergència de l’entrenament.
 
-**Nota**: L’actualització dels pesos que hem descrit correspon exactament al *gradient descent* aplicat a una neurona sigmoïdal amb funció de pèrdua *cross-entropy*. En aquest capítol no derivarem aquesta expressió, ja que el nostre objectiu és entendre el funcionament bàsic de la neurona i la seva implementació.
+:::: {.content-visible when-format="html"}
+::: {.callout-note}
+## Relació amb el gradient descent
+
+L’actualització dels pesos que hem descrit correspon exactament al *gradient descent* aplicat a una neurona sigmoïdal amb funció de pèrdua *cross-entropy*. En aquest capítol no derivarem aquesta expressió, ja que el nostre objectiu és entendre el funcionament bàsic de la neurona i la seva implementació.
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{notebox}[title={Relació amb el gradient descent}]
+```
+
+L’actualització dels pesos que hem descrit correspon exactament al *gradient descent* aplicat a una neurona sigmoïdal amb funció de pèrdua *cross-entropy*. En aquest capítol no derivarem aquesta expressió, ja que el nostre objectiu és entendre el funcionament bàsic de la neurona i la seva implementació.
+
+```{=latex}
+\end{notebox}
+```
+:::
 
 ---
 

@@ -52,7 +52,25 @@ table(df_tots$agitacio, df_tots$medi)
 
 Cada cel·la representa una combinació medi $\times$ agitació i conté 35 repeticions.
 
-**Nota**: Sabem que aquestes dades corresponen a grups (bioreactors) i dies diferents, fet que introdueix una certa dependència potencial. Tot i això, tal com hem fet abans, assumirem **independència** a efectes pràctics en aquesta anàlisi, ja que la variabilitat associada a bioreactor i data queda diluïda en considerar només l’efecte principal del medi i l’agitació. Per modelar explícitament la dependència per subjecte (bioreactor), hauríem de fer servir un model de mesures repetides (vegeu el capítol següent).
+:::: {.content-visible when-format="html"}
+::: {.callout-note}
+## Nota sobre la independència de les dades
+
+Sabem que aquestes dades corresponen a grups (bioreactors) i dies diferents, fet que introdueix una certa dependència potencial. Tot i això, tal com hem fet abans, assumirem **independència** a efectes pràctics en aquesta anàlisi, ja que la variabilitat associada a bioreactor i data queda diluïda en considerar només l’efecte principal del medi i l’agitació. Per modelar explícitament la dependència per subjecte (bioreactor), hauríem de fer servir un model de mesures repetides (vegeu el capítol següent).
+:::
+::::
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\begin{notebox}[title={Nota sobre la independència de les dades}]
+```
+
+Sabem que aquestes dades corresponen a grups (bioreactors) i dies diferents, fet que introdueix una certa dependència potencial. Tot i això, tal com hem fet abans, assumirem **independència** a efectes pràctics en aquesta anàlisi, ja que la variabilitat associada a bioreactor i data queda diluïda en considerar només l’efecte principal del medi i l’agitació. Per modelar explícitament la dependència per subjecte (bioreactor), hauríem de fer servir un model de mesures repetides (vegeu el capítol següent).
+
+```{=latex}
+\end{notebox}
+```
+:::
 
 ------------------------------------------------------------------------
 
