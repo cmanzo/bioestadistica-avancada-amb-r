@@ -339,7 +339,7 @@ FN <- cm["0", "1"]
 
 Les mesures clàssiques d’avaluació són:\
 - **Accuracy**:
-  $$ \text{Accuracy} = \frac{\text{TP}}{\text{TP} + \text{FN} + \text{FP} + \text{TN}} $$
+  $$ \text{Accuracy} = \frac{\text{TP} + \text{TN}}{\text{TP} + \text{TN} + \text{FP} + \text{FN}} $$
 - **Sensibilitat** (o *recall*):\
   $$ \text{TPR} = \frac{\text{TP}}{\text{TP} + \text{FN}} $$
    *capacitat de detectar els casos positius*

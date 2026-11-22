@@ -173,7 +173,7 @@ Una altra informació rellevant és el `Multiple R-squared` i l’`Adjusted R-sq
 El primer, el Multiple R-squared, és el **coeficient de determinació** $R^2$. Tot i que en regressió simple només hi ha un predictor, R utilitza sempre el terme Multiple R-squared per coherència amb la regressió múltiple. $R^2$ indica quina proporció de la variabilitat de $y$ és explicada pel model lineal:\
 - $R^2=1$ indica un ajust perfecte,\
 - $R^2=0$ indica que el model no explica res.\
-- Valors intermedis de $R^2=0$ indiquen una explicació parcial.
+- Valors intermedis de $R^2$ indiquen una explicació parcial.
 
 Formalment:
 

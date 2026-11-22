@@ -596,8 +596,8 @@ A la figura següent:\
 Això permet inspeccionar visualment en quines zones de l’espai la neurona falla més clarament, típicament en aquelles on la separació requereix corbes o formes no lineals.
 ```{r}
 # Símbols per a les prediccions
-pch_A_pred <- 3    # X
-pch_B_pred <- 4    # +
+pch_A_pred <- 3    # +
+pch_B_pred <- 4    # X
   
 # Assignem colors i símbols reals
 cols_real <- ifelse(test$tipus_bin == 0, col_A, col_B)
@@ -708,8 +708,8 @@ Els resultats mostren que:\
 Per entendre visualment com funciona aquesta xarxa més flexible, representem les dades reals i superposem les prediccions:
 ```{r}
 # Símbols per a les prediccions
-pch_A_pred <- 3    # X
-pch_B_pred <- 4    # +
+pch_A_pred <- 3    # +
+pch_B_pred <- 4    # X
   
 # Assignem colors i símbols reals
 cols_real <- ifelse(test$tipus_bin == 0, col_A, col_B)
